@@ -1,172 +1,171 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SnapShare • 3‑Digit File Access</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <style>
-    html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; }
-    .glass { background: rgba(255,255,255,.9); backdrop-filter: blur(10px); }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnapShare • 3-Digit File Access</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; }
+  .glass { background: rgba(255,255,255,.9); backdrop-filter: blur(10px); }
+</style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-indigo-50 via-sky-50 to-cyan-100">
-  <div class="max-w-5xl mx-auto p-6">
-    <header class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
-      <div>
-        <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">SnapShare <span class="text-cyan-600">•</span> 3‑Digit File Access</h1>
-        <p class="text-slate-600 mt-1">Upload a PDF, Word doc, or photo. Get a <strong>3‑digit</strong> code. Enter the code on any device to download.</p>
-      </div>
-      <a href="#how" class="mt-3 md:mt-0 inline-flex items-center gap-2 text-sm text-indigo-700 hover:underline">How it works</a>
-    </header>
+<div class="max-w-5xl mx-auto p-6">
 
-    <main class="grid md:grid-cols-2 gap-6">
-      <!-- Upload Card -->
-      <section class="glass rounded-2xl shadow-xl p-5 border border-slate-100">
-        <h2 class="text-xl font-semibold mb-2">Upload</h2>
-        <p class="text-sm text-slate-600 mb-4">Allowed: PDF, DOC, DOCX, JPG, PNG.</p>
-        <label class="block">
-          <input id="fileInput" type="file" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" accept=".pdf,.doc,.docx,image/*" />
-        </label>
-        <div id="fileMeta" class="hidden mt-3 text-xs text-slate-600"></div>
-        <button id="uploadBtn" class="mt-4 px-4 py-2 rounded-xl bg-cyan-600 text-white font-semibold shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Upload & Generate Code</button>
-
-        <div id="codePanel" class="hidden mt-5 p-4 rounded-xl border bg-slate-50">
-          <div class="text-xs text-slate-500">Your 3‑digit code</div>
-          <div class="flex items-center gap-3 mt-1">
-            <div id="code" class="text-4xl font-mono tracking-widest">—</div>
-            <button id="copyCode" class="px-3 py-1.5 text-sm rounded-lg border bg-white hover:bg-slate-50">Copy</button>
-          </div>
-          <p class="text-xs text-slate-500 mt-2">Share this number with the other device to retrieve the file.</p>
-        </div>
-      </section>
-
-      <!-- Retrieve Card -->
-      <section class="glass rounded-2xl shadow-xl p-5 border border-slate-100">
-        <h2 class="text-xl font-semibold mb-2">Retrieve</h2>
-        <p class="text-sm text-slate-600 mb-4">Enter the 3‑digit code to fetch the file.</p>
-        <div class="flex items-center gap-2">
-          <input id="retrieveInput" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="e.g. 237" class="w-full p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-cyan-600" />
-          <button id="retrieveBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold shadow hover:shadow-md">Lookup</button>
-        </div>
-        <div id="lookupStatus" class="mt-3 text-sm text-slate-600"></div>
-        <div id="resultCard" class="hidden mt-4 p-4 rounded-xl border bg-slate-50">
-          <div class="flex items-center justify-between">
-            <div>
-              <div id="resultName" class="font-medium">filename</div>
-              <div id="resultMeta" class="text-xs text-slate-500">meta</div>
-            </div>
-            <a id="downloadLink" href="#" target="_blank" rel="noreferrer noopener" class="px-3 py-2 rounded-lg bg-cyan-600 text-white text-sm font-semibold hover:bg-cyan-700">Open / Download</a>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <section id="how" class="mt-8 glass rounded-2xl shadow-xl p-5 border border-slate-100">
-      <h3 class="text-lg font-semibold">How it works</h3>
-      <ol class="list-decimal ml-5 mt-2 text-sm text-slate-600 space-y-1">
-        <li>Upload your file. The site generates a random <strong>3‑digit</strong> code.</li>
-        <li>We store the file in Supabase Storage (public bucket) and save the code → file mapping in Supabase table <code>file_codes</code>.</li>
-        <li>On any device, enter the code to fetch the download link.</li>
-      </ol>
-      <p class="text-xs text-slate-500 mt-3">Tip: For production, consider longer codes, authentication, and automatic file expiration.</p>
-    </section>
-
-    <footer class="mt-8 text-xs text-slate-500">
-      <p>© <span id="year"></span> SnapShare. For demo use. Secure your Supabase rules before going live.</p>
-    </footer>
+<header class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
+  <div>
+    <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">SnapShare <span class="text-cyan-600">•</span> 3-Digit File Access</h1>
+    <p class="text-slate-600 mt-1">Upload a PDF, Word doc, or photo. Get a <strong>3-digit</strong> code. Enter the code on any device to download.</p>
   </div>
+  <a href="#how" class="mt-3 md:mt-0 inline-flex items-center gap-2 text-sm text-indigo-700 hover:underline">How it works</a>
+</header>
 
-  <!-- Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
-  <script>
-    const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
-    const BUCKET = "secondbucket";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+<main class="grid md:grid-cols-2 gap-6">
 
-    const fileInput = document.getElementById('fileInput');
-    const fileMeta = document.getElementById('fileMeta');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const codePanel = document.getElementById('codePanel');
-    const codeEl = document.getElementById('code');
-    const copyBtn = document.getElementById('copyCode');
+<!-- Upload Card -->
+<section class="glass rounded-2xl shadow-xl p-5 border border-slate-100">
+  <h2 class="text-xl font-semibold mb-2">Upload</h2>
+  <p class="text-sm text-slate-600 mb-4">Allowed: PDF, DOC, DOCX, JPG, PNG.</p>
+  <input id="fileInput" type="file" class="block w-full mb-3">
+  <div id="fileMeta" class="hidden text-xs text-slate-600 mb-2"></div>
+  <button id="uploadBtn" class="mt-2 px-4 py-2 rounded-xl bg-cyan-600 text-white font-semibold shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Upload & Generate Code</button>
 
-    const retrieveInput = document.getElementById('retrieveInput');
-    const retrieveBtn = document.getElementById('retrieveBtn');
-    const lookupStatus = document.getElementById('lookupStatus');
-    const resultCard = document.getElementById('resultCard');
-    const resultName = document.getElementById('resultName');
-    const resultMeta = document.getElementById('resultMeta');
-    const downloadLink = document.getElementById('downloadLink');
+  <div id="codePanel" class="hidden mt-4 p-4 rounded-xl border bg-slate-50">
+    <div class="text-xs text-slate-500">Your 3-digit code</div>
+    <div class="flex items-center gap-3 mt-1">
+      <div id="code" class="text-4xl font-mono tracking-widest">—</div>
+      <button id="copyCode" class="px-3 py-1.5 text-sm rounded-lg border bg-white hover:bg-slate-50">Copy</button>
+    </div>
+    <p class="text-xs text-slate-500 mt-2">Share this number with the other device to retrieve the file.</p>
+  </div>
+</section>
 
-    document.getElementById('year').textContent = new Date().getFullYear();
+<!-- Retrieve Card -->
+<section class="glass rounded-2xl shadow-xl p-5 border border-slate-100">
+  <h2 class="text-xl font-semibold mb-2">Retrieve</h2>
+  <p class="text-sm text-slate-600 mb-4">Enter the 3-digit code to fetch the file.</p>
+  <div class="flex items-center gap-2 mb-2">
+    <input id="retrieveInput" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="e.g. 237" class="w-full p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-cyan-600">
+    <button id="retrieveBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold shadow hover:shadow-md">Lookup</button>
+  </div>
+  <div id="lookupStatus" class="text-sm text-slate-600 mb-2"></div>
+  <div id="resultCard" class="hidden p-4 rounded-xl border bg-slate-50">
+    <div class="flex items-center justify-between">
+      <div>
+        <div id="resultName" class="font-medium">filename</div>
+        <div id="resultMeta" class="text-xs text-slate-500">meta</div>
+      </div>
+      <a id="downloadLink" href="#" target="_blank" rel="noreferrer noopener" class="px-3 py-2 rounded-lg bg-cyan-600 text-white text-sm font-semibold hover:bg-cyan-700">Open / Download</a>
+    </div>
+  </div>
+</section>
 
-    fileInput.addEventListener('change', () => {
-      const f = fileInput.files?.[0];
-      if (!f) { fileMeta.classList.add('hidden'); return; }
-      fileMeta.classList.remove('hidden');
-      fileMeta.textContent = `${f.name} • ${(f.size/1024/1024).toFixed(2)} MB • ${f.type || 'unknown type'}`;
-    });
+</main>
 
-    const random3 = () => Math.floor(Math.random()*900)+100;
+<section id="how" class="mt-8 glass rounded-2xl shadow-xl p-5 border border-slate-100">
+<h3 class="text-lg font-semibold">How it works</h3>
+<ol class="list-decimal ml-5 mt-2 text-sm text-slate-600 space-y-1">
+  <li>Upload your file. The site generates a random <strong>3-digit</strong> code.</li>
+  <li>We store the file in Supabase Storage and save the code → file mapping in <code>file_codes</code> table.</li>
+  <li>On any device, enter the code to fetch the download link.</li>
+</ol>
+<p class="text-xs text-slate-500 mt-3">Tip: For production, use authentication, longer codes, and automatic expiration.</p>
+</section>
 
-    async function unique3Digit() {
-      for(let i=0;i<10;i++){
-        const code = random3();
-        const { data, error } = await supabase.from('file_codes').select('code').eq('code', code).limit(1).single();
-        if (!data) return String(code);
-      }
-      return String((Date.now()%900)+100);
-    }
+<footer class="mt-8 text-xs text-slate-500">
+<p>© <span id="year"></span> SnapShare.</p>
+</footer>
+</div>
 
-    uploadBtn.addEventListener('click', async ()=>{
-      const f = fileInput.files?.[0];
-      if(!f){ alert('Please select a file first.'); return; }
-      try{
-        uploadBtn.disabled=true;
-        codePanel.classList.add('hidden');
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
+const BUCKET = "secondbucket";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const code = await unique3Digit();
-        const filePath = `${code}_${f.name}`;
+const fileInput = document.getElementById('fileInput');
+const fileMeta = document.getElementById('fileMeta');
+const uploadBtn = document.getElementById('uploadBtn');
+const codePanel = document.getElementById('codePanel');
+const codeEl = document.getElementById('code');
+const copyBtn = document.getElementById('copyCode');
 
-        const { error: uploadError } = await supabase.storage.from(BUCKET).upload(filePath, f, { upsert:true });
-        if(uploadError) throw uploadError;
+const retrieveInput = document.getElementById('retrieveInput');
+const retrieveBtn = document.getElementById('retrieveBtn');
+const lookupStatus = document.getElementById('lookupStatus');
+const resultCard = document.getElementById('resultCard');
+const resultName = document.getElementById('resultName');
+const resultMeta = document.getElementById('resultMeta');
+const downloadLink = document.getElementById('downloadLink');
 
-        const { error: dbError } = await supabase.from('file_codes').insert([{ code, path:filePath }]);
-        if(dbError) throw dbError;
+document.getElementById('year').textContent = new Date().getFullYear();
 
-        codeEl.textContent = code;
-        codePanel.classList.remove('hidden');
-      }catch(err){
-        console.error(err);
-        alert('Upload failed: '+(err?.message||err));
-      }finally{ uploadBtn.disabled=false; }
-    });
+fileInput.addEventListener('change', ()=>{
+  const f = fileInput.files[0];
+  if(!f){ fileMeta.classList.add('hidden'); return; }
+  fileMeta.classList.remove('hidden');
+  fileMeta.textContent = `${f.name} • ${(f.size/1024/1024).toFixed(2)} MB • ${f.type || 'unknown type'}`;
+});
 
-    copyBtn.addEventListener('click', async ()=>{
-      const text = codeEl.textContent?.trim();
-      if(!text||text==='—')return;
-      try{ await navigator.clipboard.writeText(text); copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy',1200); }catch{}
-    });
+function random3(){ return Math.floor(Math.random()*900)+100; }
 
-    retrieveBtn.addEventListener('click', async ()=>{
-      const raw = (retrieveInput.value||'').trim();
-      if(!/^[0-9]{3}$/.test(raw)){ lookupStatus.textContent='Enter a valid 3-digit code.'; resultCard.classList.add('hidden'); return; }
-      lookupStatus.textContent='Looking up…';
-      resultCard.classList.add('hidden');
-      try{
-        const { data, error } = await supabase.from('file_codes').select('*').eq('code', raw).single();
-        if(error||!data){ lookupStatus.textContent='No file found for that code.'; return; }
-        const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
-        resultName.textContent = data.path.split('_').slice(1).join('_') || 'file';
-        resultMeta.textContent = `Path: ${data.path}`;
-        downloadLink.href = publicUrl.publicUrl;
-        resultCard.classList.remove('hidden');
-        lookupStatus.textContent='File found.';
-      }catch(err){ console.error(err); lookupStatus.textContent='Lookup failed: '+(err?.message||err); }
-    });
-  </script>
+async function uniqueCode(){
+  for(let i=0;i<10;i++){
+    const code = random3();
+    const { data } = await supabase.from('file_codes').select('code').eq('code', code).single();
+    if(!data) return code;
+  }
+  return (Date.now()%900)+100;
+}
+
+uploadBtn.addEventListener('click', async ()=>{
+  const f = fileInput.files[0];
+  if(!f){ alert('Select a file'); return; }
+  uploadBtn.disabled=true;
+  codePanel.style.display="none";
+
+  const code = await uniqueCode();
+  const path = `${code}_${f.name}`;
+
+  const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, f, { upsert:true });
+  if(upErr){ alert("Upload failed: "+upErr.message); uploadBtn.disabled=false; return; }
+
+  const { error: dbErr } = await supabase.from('file_codes').insert([{ code, path }]);
+  if(dbErr){ alert("DB insert failed: "+dbErr.message); uploadBtn.disabled=false; return; }
+
+  codeEl.textContent=code;
+  codePanel.style.display="block";
+  uploadBtn.disabled=false;
+});
+
+copyBtn.addEventListener('click', async ()=>{
+  const text = codeEl.textContent?.trim();
+  if(!text||text==='—') return;
+  try{ await navigator.clipboard.writeText(text); copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy',1200);}catch{}
+});
+
+retrieveBtn.addEventListener('click', async ()=>{
+  const raw = (retrieveInput.value||'').trim();
+  if(!/^[0-9]{3}$/.test(raw)){ lookupStatus.textContent='Enter valid 3-digit code'; resultCard.style.display='none'; return; }
+
+  lookupStatus.textContent='Looking up…';
+  resultCard.style.display='none';
+  try{
+    const { data, error } = await supabase.from('file_codes').select('*').eq('code', raw).single();
+    if(error||!data){ lookupStatus.textContent='No file found for that code'; return; }
+
+    const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
+    resultName.textContent = data.path.split('_').slice(1).join('_') || 'file';
+    resultMeta.textContent = `Path: ${data.path}`;
+    downloadLink.href = publicUrl.publicUrl;
+    resultCard.style.display='block';
+    lookupStatus.textContent='File found';
+  }catch(err){ console.error(err); lookupStatus.textContent='Lookup failed: '+(err?.message||err); }
+});
+</script>
 </body>
 </html>

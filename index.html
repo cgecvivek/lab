@@ -3,79 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SnapShare • Upload & Generate Code</title>
+<title>SnapShare Upload</title>
 <style>
-  body {
-    font-family: 'Inter', Arial, sans-serif;
-    background: linear-gradient(135deg, #e0f2fe, #f0f9ff);
-    margin: 0; padding: 20px;
-    display: flex; justify-content: center; align-items: flex-start;
-    min-height: 100vh;
-  }
-  .container {
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(8px);
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-    padding: 25px;
-    max-width: 400px;
-    width: 100%;
-  }
-  h2 {
-    margin-top: 0;
-    color: #0f172a;
-    font-size: 1.8em;
-  }
-  input[type=file] {
-    width: 100%;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    margin: 10px 0;
-  }
-  button {
-    width: 100%;
-    padding: 12px;
-    background-color: #0ea5e9;
-    color: white;
-    font-weight: bold;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1em;
-  }
-  button:hover { background-color: #0284c7; }
-  #status {
-    margin-top: 15px;
-    font-weight: bold;
-    text-align: center;
-    color: #1e293b;
-  }
-  .code-display {
-    margin-top: 15px;
-    text-align: center;
-    font-size: 2em;
-    font-family: monospace;
-    color: #0c4a6e;
-    background: #e0f2fe;
-    padding: 10px;
-    border-radius: 8px;
-    user-select: all;
-  }
+body { font-family: Arial, sans-serif; background: #f0f9ff; display: flex; justify-content: center; padding: 50px; }
+.container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+h2 { margin-top: 0; }
+input[type=file], button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #cbd5e1; }
+button { background: #0ea5e9; color: white; border: none; font-weight: bold; cursor: pointer; }
+button:hover { background: #0284c7; }
+#code { margin-top: 20px; font-size: 2em; font-family: monospace; text-align: center; }
+#status { margin-top: 10px; text-align: center; }
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h2>SnapShare</h2>
-  <p>Upload a PDF, Word document, or image. Get a <strong>3-digit code</strong> to share your file.</p>
+  <h2>SnapShare Upload</h2>
   <input type="file" id="fileInput">
   <button id="uploadBtn">Upload & Generate Code</button>
-  <p id="status"></p>
-  <div id="codePanel" class="code-display" style="display:none;">---</div>
+  <div id="status"></div>
+  <div id="code"></div>
 </div>
 
-<script src="https://unpkg.com/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
@@ -85,40 +35,39 @@ const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const fileInput = document.getElementById("fileInput");
 const uploadBtn = document.getElementById("uploadBtn");
 const status = document.getElementById("status");
-const codePanel = document.getElementById("codePanel");
+const codeDiv = document.getElementById("code");
 
-function random3(){ return Math.floor(100 + Math.random()*900).toString(); }
+function random3() { return Math.floor(100 + Math.random()*900).toString(); }
 
-async function uniqueCode(){
-  for(let i=0;i<10;i++){
+async function uniqueCode() {
+  for (let i=0; i<10; i++) {
     const code = random3();
-    const { data } = await supabase.from("file_codes").select("code").eq("code", code).maybeSingle();
-    if(!data) return code;
+    const { data, error } = await supabase.from("file_codes").select("code").eq("code", code).limit(1);
+    if (error) { console.log("Error checking code:", error); continue; }
+    if (data.length === 0) return code;
   }
   return (Date.now()%900)+100;
 }
 
 uploadBtn.addEventListener("click", async () => {
   const file = fileInput.files[0];
-  if(!file){ status.textContent="⚠️ Please select a file!"; return; }
+  if (!file) { status.textContent = "⚠️ Please select a file."; return; }
 
-  status.textContent = "Uploading…";
   uploadBtn.disabled = true;
+  status.textContent = "Uploading…";
+  codeDiv.textContent = "";
 
   const code = await uniqueCode();
   const path = `${code}_${file.name}`;
 
-  // Upload to Supabase Storage
-  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
-  if(uploadError){ status.textContent="❌ Upload failed: "+uploadError.message; uploadBtn.disabled=false; return; }
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert:true });
+  if (uploadError) { status.textContent = "❌ Upload failed: "+uploadError.message; uploadBtn.disabled=false; return; }
 
-  // Insert code & path into DB
-  const { error: insertError } = await supabase.from("file_codes").insert([{ code, path }]);
-  if(insertError){ status.textContent="⚠️ DB insert failed: "+insertError.message; uploadBtn.disabled=false; return; }
+  const { error: dbError } = await supabase.from("file_codes").insert([{ code, path }]);
+  if (dbError) { status.textContent = "⚠️ DB insert failed: "+dbError.message; uploadBtn.disabled=false; return; }
 
   status.textContent = "✅ Upload successful!";
-  codePanel.textContent = code;
-  codePanel.style.display = "block";
+  codeDiv.textContent = code;
   uploadBtn.disabled = false;
 });
 </script>

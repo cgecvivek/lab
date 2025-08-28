@@ -1,160 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>📂 File Share</title>
-  <script src="https://unpkg.com/@supabase/supabase-js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #4e54c8, #8f94fb);
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .card {
-      background: #fff;
-      color: #333;
-      border-radius: 16px;
-      padding: 30px;
-      width: 360px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-      text-align: center;
-    }
-    h1 {
-      font-size: 22px;
-      margin-bottom: 20px;
-      color: #4e54c8;
-    }
-    input[type="file"], input[type="text"] {
-      margin: 10px 0;
-      padding: 8px;
-      width: 100%;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    button {
-      background: #4e54c8;
-      color: #fff;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 8px;
-      margin: 8px 0;
-      width: 100%;
-      cursor: pointer;
-      font-weight: bold;
-    }
-    button:hover {
-      background: #3639a4;
-    }
-    .code-box {
-      font-size: 26px;
-      font-weight: bold;
-      color: #4e54c8;
-      margin: 12px 0;
-    }
-    .link-box {
-      margin-top: 10px;
-      word-break: break-word;
-      font-size: 14px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📂 File Share</title>
+<script src="https://unpkg.com/@supabase/supabase-js"></script>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #4e54c8, #8f94fb);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  .card {
+    background: #fff;
+    color: #333;
+    border-radius: 16px;
+    padding: 30px;
+    width: 360px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    text-align: center;
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 20px;
+    color: #4e54c8;
+  }
+  input[type="file"], input[type="text"] {
+    margin: 10px 0;
+    padding: 8px;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  button {
+    background: #4e54c8;
+    color: #fff;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin: 8px 0;
+    width: 100%;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  button:hover {
+    background: #3639a4;
+  }
+  .code-box {
+    font-size: 26px;
+    font-weight: bold;
+    color: #4e54c8;
+    margin: 12px 0;
+  }
+  .link-box {
+    margin-top: 10px;
+    word-break: break-word;
+    font-size: 14px;
+  }
+  .progress-wrap {
+    width: 100%;
+    height: 12px;
+    background: #ddd;
+    border-radius: 6px;
+    margin-top: 10px;
+  }
+  .progress-bar {
+    height: 100%;
+    width: 0;
+    background: #4e54c8;
+    border-radius: 6px;
+  }
+</style>
 </head>
 <body>
-  <div class="card">
-    <h1>📂 Quick File Share</h1>
+<div class="card">
+  <h1>📂 Quick File Share</h1>
 
-    <!-- Upload -->
-    <input type="file" id="fileInput">
-    <button onclick="uploadFile()">Upload & Generate Code</button>
-    <div id="uploadResult"></div>
-
-    <hr>
-
-    <!-- Retrieve -->
-    <input type="text" id="codeInput" placeholder="Enter 3-digit code">
-    <button onclick="fetchFile()">Fetch File</button>
-    <div id="fetchResult"></div>
+  <!-- Upload -->
+  <input type="file" id="fileInput">
+  <button id="uploadBtn">Upload & Generate Code</button>
+  <div class="progress-wrap hidden">
+    <div class="progress-bar" id="progressBar"></div>
   </div>
+  <div id="uploadResult"></div>
 
-  <script>
-    const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co"; // replace if needed
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w"; 
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <hr>
 
-    async function uploadFile() {
-      const fileInput = document.getElementById('fileInput');
-      const resultBox = document.getElementById('uploadResult');
-      if (!fileInput.files.length) {
-        alert("Please select a file.");
-        return;
-      }
-      const file = fileInput.files[0];
-      const code = Math.floor(100 + Math.random() * 900).toString();
-      const filePath = `${Date.now()}_${file.name}`;
+  <!-- Retrieve -->
+  <input type="text" id="codeInput" placeholder="Enter 3-digit code">
+  <button onclick="fetchFile()">Fetch File</button>
+  <div id="fetchResult"></div>
+</div>
 
-      // Upload to storage
-      const { error: uploadError } = await supabase.storage
-        .from('secondbucket')
-        .upload(filePath, file);
+<script>
+const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co"; 
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
+const BUCKET = "secondbucket";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      if (uploadError) {
-        resultBox.innerHTML = `<p style="color:red">❌ Upload failed: ${uploadError.message}</p>`;
-        return;
-      }
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadResult = document.getElementById('uploadResult');
+const progressWrap = document.querySelector('.progress-wrap');
+const progressBar = document.getElementById('progressBar');
 
-      // Save mapping in table
-      const { error: dbError } = await supabase
-        .from('file_codes')
-        .insert([{ code, path: filePath }]);
+function random3(){ return Math.floor(100 + Math.random()*900).toString(); }
 
-      if (dbError) {
-        resultBox.innerHTML = `<p style="color:red">❌ Database error: ${dbError.message}</p>`;
-        return;
-      }
+async function uniqueCode(){
+  for(let i=0;i<10;i++){
+    const { data } = await supabase.from('file_codes').select('code').eq('code', random3()).maybeSingle();
+    if(!data) return random3();
+  }
+  return (Date.now()%900 + 100).toString();
+}
 
-      resultBox.innerHTML = `
-        ✅ Uploaded! <br>
-        <div class="code-box">${code}</div>
-        Share this code to download on another device.
-      `;
+uploadBtn.addEventListener('click', async () => {
+  if(!fileInput.files.length){ alert("Select a file"); return; }
+  const file = fileInput.files[0];
+  uploadBtn.disabled = true;
+  uploadResult.innerHTML = '';
+  progressWrap.classList.remove('hidden');
+  progressBar.style.width = '0%';
+
+  const code = await uniqueCode();
+  const path = `${Date.now()}_${file.name}`;
+
+  // Supabase storage upload with progress
+  const { data, error } = await supabase.storage.from(BUCKET).upload(path, file, {
+    upsert: true,
+    onProgress: (event) => {
+      const pct = Math.round((event.loaded / event.total) * 100);
+      progressBar.style.width = pct + '%';
     }
+  });
 
-    async function fetchFile() {
-      const code = document.getElementById('codeInput').value.trim();
-      const resultBox = document.getElementById('fetchResult');
-      if (!code) {
-        alert("Please enter a code.");
-        return;
-      }
+  if(error){ uploadResult.innerHTML = `<p style="color:red">❌ Upload failed: ${error.message}</p>`; uploadBtn.disabled=false; progressWrap.classList.add('hidden'); return; }
 
-      // Look up path
-      const { data, error } = await supabase
-        .from('file_codes')
-        .select('path')
-        .eq('code', code)
-        .single();
+  // Insert code/path
+  const { error: dbError } = await supabase.from('file_codes').insert([{ code, path }]);
+  if(dbError){ uploadResult.innerHTML = `<p style="color:red">❌ DB error: ${dbError.message}</p>`; uploadBtn.disabled=false; progressWrap.classList.add('hidden'); return; }
 
-      if (error || !data) {
-        resultBox.innerHTML = `<p style="color:red">❌ Invalid code</p>`;
-        return;
-      }
+  uploadResult.innerHTML = `
+    ✅ Uploaded! <br>
+    <div class="code-box">${code}</div>
+    Share this code to download on another device.
+  `;
+  uploadBtn.disabled = false;
+  progressWrap.classList.add('hidden');
+});
 
-      // Get public URL
-      const { data: publicUrl } = supabase
-        .storage
-        .from('secondbucket')
-        .getPublicUrl(data.path);
+async function fetchFile() {
+  const code = document.getElementById('codeInput').value.trim();
+  const fetchResult = document.getElementById('fetchResult');
+  if(!code){ alert("Enter a code"); return; }
 
-      resultBox.innerHTML = `
-        ✅ File ready: <br>
-        <div class="link-box"><a href="${publicUrl.publicUrl}" target="_blank">${publicUrl.publicUrl}</a></div>
-      `;
-    }
-  </script>
+  const { data, error } = await supabase.from('file_codes').select('path').eq('code', code).maybeSingle();
+  if(error || !data){ fetchResult.innerHTML = `<p style="color:red">❌ Invalid code</p>`; return; }
+
+  const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
+  fetchResult.innerHTML = `
+    ✅ File ready: <br>
+    <div class="link-box"><a href="${publicUrl.publicUrl}" target="_blank">${publicUrl.publicUrl}</a></div>
+  `;
+}
+</script>
 </body>
 </html>

@@ -5,12 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SnapShare • 3‑Digit File Access</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <meta name="description" content="Upload a file and get a 3‑digit code to share it instantly across devices." />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-    html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; }
+    html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; }
     .glass { background: rgba(255,255,255,.9); backdrop-filter: blur(10px); }
   </style>
 </head>
@@ -29,13 +26,10 @@
       <section class="glass rounded-2xl shadow-xl p-5 border border-slate-100">
         <h2 class="text-xl font-semibold mb-2">Upload</h2>
         <p class="text-sm text-slate-600 mb-4">Allowed: PDF, DOC, DOCX, JPG, PNG.</p>
-
         <label class="block">
-          <input id="fileInput" type="file" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*" />
+          <input id="fileInput" type="file" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" accept=".pdf,.doc,.docx,image/*" />
         </label>
-
         <div id="fileMeta" class="hidden mt-3 text-xs text-slate-600"></div>
-
         <button id="uploadBtn" class="mt-4 px-4 py-2 rounded-xl bg-cyan-600 text-white font-semibold shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Upload & Generate Code</button>
 
         <div id="codePanel" class="hidden mt-5 p-4 rounded-xl border bg-slate-50">
@@ -116,69 +110,62 @@
       fileMeta.textContent = `${f.name} • ${(f.size/1024/1024).toFixed(2)} MB • ${f.type || 'unknown type'}`;
     });
 
-    const random3 = () => Math.floor(Math.random()*900) + 100;
+    const random3 = () => Math.floor(Math.random()*900)+100;
 
     async function unique3Digit() {
-      for (let i = 0; i < 10; i++) {
-        const { data } = await supabase.from('file_codes').select('code').eq('code', random3()).limit(1).single();
-        if (!data) return String(random3());
+      for(let i=0;i<10;i++){
+        const code = random3();
+        const { data, error } = await supabase.from('file_codes').select('code').eq('code', code).limit(1).single();
+        if (!data) return String(code);
       }
       return String((Date.now()%900)+100);
     }
 
-    uploadBtn.addEventListener('click', async () => {
+    uploadBtn.addEventListener('click', async ()=>{
       const f = fileInput.files?.[0];
-      if (!f) { alert('Please select a file first.'); return; }
-      try {
-        uploadBtn.disabled = true;
+      if(!f){ alert('Please select a file first.'); return; }
+      try{
+        uploadBtn.disabled=true;
         codePanel.classList.add('hidden');
 
         const code = await unique3Digit();
         const filePath = `${code}_${f.name}`;
 
-        const { data, error } = await supabase.storage.from(BUCKET).upload(filePath, f, { upsert: true });
-        if (error) throw error;
+        const { error: uploadError } = await supabase.storage.from(BUCKET).upload(filePath, f, { upsert:true });
+        if(uploadError) throw uploadError;
 
-        const { error: dbError } = await supabase.from('file_codes').insert([{ code, path: filePath }]);
-        if (dbError) throw dbError;
+        const { error: dbError } = await supabase.from('file_codes').insert([{ code, path:filePath }]);
+        if(dbError) throw dbError;
 
         codeEl.textContent = code;
         codePanel.classList.remove('hidden');
-      } catch (err) {
+      }catch(err){
         console.error(err);
-        alert('Upload failed: ' + (err?.message || err));
-      } finally {
-        uploadBtn.disabled = false;
-      }
+        alert('Upload failed: '+(err?.message||err));
+      }finally{ uploadBtn.disabled=false; }
     });
 
-    copyBtn.addEventListener('click', async () => {
+    copyBtn.addEventListener('click', async ()=>{
       const text = codeEl.textContent?.trim();
-      if (!text || text === '—') return;
-      try { await navigator.clipboard.writeText(text); copyBtn.textContent = 'Copied'; setTimeout(()=>copyBtn.textContent='Copy',1200); } catch {}
+      if(!text||text==='—')return;
+      try{ await navigator.clipboard.writeText(text); copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy',1200); }catch{}
     });
 
-    retrieveBtn.addEventListener('click', async () => {
-      const raw = (retrieveInput.value || '').trim();
-      if (!/^[0-9]{3}$/.test(raw)) { lookupStatus.textContent = 'Enter a valid 3-digit code.'; resultCard.classList.add('hidden'); return; }
-
-      lookupStatus.textContent = 'Looking up…';
+    retrieveBtn.addEventListener('click', async ()=>{
+      const raw = (retrieveInput.value||'').trim();
+      if(!/^[0-9]{3}$/.test(raw)){ lookupStatus.textContent='Enter a valid 3-digit code.'; resultCard.classList.add('hidden'); return; }
+      lookupStatus.textContent='Looking up…';
       resultCard.classList.add('hidden');
-
-      try {
+      try{
         const { data, error } = await supabase.from('file_codes').select('*').eq('code', raw).single();
-        if (error || !data) { lookupStatus.textContent = 'No file found for that code.'; return; }
-
+        if(error||!data){ lookupStatus.textContent='No file found for that code.'; return; }
         const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
         resultName.textContent = data.path.split('_').slice(1).join('_') || 'file';
         resultMeta.textContent = `Path: ${data.path}`;
         downloadLink.href = publicUrl.publicUrl;
         resultCard.classList.remove('hidden');
-        lookupStatus.textContent = 'File found.';
-      } catch (err) {
-        console.error(err);
-        lookupStatus.textContent = 'Lookup failed: ' + (err?.message || err);
-      }
+        lookupStatus.textContent='File found.';
+      }catch(err){ console.error(err); lookupStatus.textContent='Lookup failed: '+(err?.message||err); }
     });
   </script>
 </body>

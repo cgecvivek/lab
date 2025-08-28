@@ -1,115 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3-Digit File Share</title>
+  <meta charset="UTF-8">
+  <title>File Share with Code</title>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      margin: 0;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      text-align: center;
+      padding: 50px;
     }
     .container {
-      background: white;
-      padding: 2rem;
-      border-radius: 1rem;
-      box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
-      max-width: 400px;
-      width: 90%;
-      text-align: center;
+      max-width: 600px;
+      margin: auto;
+      background: rgba(0,0,0,0.5);
+      padding: 30px;
+      border-radius: 15px;
     }
     input, button {
-      margin: 10px 0;
-      padding: 12px;
+      padding: 10px;
+      margin: 10px;
       border-radius: 8px;
-      border: 1px solid #ccc;
-      width: 100%;
-      font-size: 1rem;
+      border: none;
     }
     button {
-      background: #4facfe;
+      background: #4CAF50;
       color: white;
-      border: none;
-      font-weight: bold;
       cursor: pointer;
-      transition: background 0.3s;
     }
     button:hover {
-      background: #3a8edb;
+      background: #45a049;
     }
-    .code {
-      font-weight: bold;
-      font-size: 1.5rem;
-      color: #0c4a6e;
-    }
-    .link {
-      margin-top: 8px;
-      font-size: 0.9rem;
-      word-break: break-word;
+    .link-box {
+      margin-top: 20px;
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 10px;
+      word-wrap: break-word;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>📂 3-Digit File Share</h2>
+    <h1>📂 3-Digit Code File Share</h1>
+    
     <h3>Upload a File</h3>
-    <input type="file" id="fileInput"/>
-    <button onclick="uploadFile()">Upload & Get Code</button>
-    <p id="uploadResult"></p>
-    <hr/>
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">Upload</button>
+    <div id="uploadResult"></div>
+
+    <hr>
+
     <h3>Access a File</h3>
-    <input type="text" id="codeInput" placeholder="Enter 3-digit code"/>
-    <button onclick="downloadFile()">Download File</button>
-    <p id="downloadResult"></p>
+    <input type="text" id="codeInput" placeholder="Enter 3-digit code">
+    <button onclick="getFile()">Get File</button>
+    <div id="fileLink"></div>
   </div>
+
   <script>
+    // 🔑 Supabase config
     const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
-    const BUCKET = "vivek";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
+    const BUCKET = "secondbucket";
 
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    function generateCode() {
-      return Math.floor(100 + Math.random() * 900).toString();
-    }
-
+    // Upload function
     async function uploadFile() {
       const fileInput = document.getElementById("fileInput");
-      const resultEl = document.getElementById("uploadResult");
-      if (!fileInput.files.length) return alert("Select a file.");
-
       const file = fileInput.files[0];
-      const code = generateCode();
-      const path = `uploads/${Date.now()}-${file.name}`;
+      if (!file) return alert("Please select a file.");
 
-      const { error: uploadErr } = await supabase.storage.from(BUCKET).upload(path, file);
-      if (uploadErr) return resultEl.textContent = `Upload failed: ${uploadErr.message}`;
+      const code = Math.floor(100 + Math.random() * 900); // random 3-digit code
+      const filePath = `${code}_${file.name}`;
 
-      const { error: dbErr } = await supabase.from("file_codes").insert([{ code, file_path: path, bucket: BUCKET }]);
-      if (dbErr) return resultEl.textContent = `Mapping failed: ${dbErr.message}`;
+      const { data, error } = await supabase.storage
+        .from(BUCKET)
+        .upload(filePath, file, { upsert: true });
 
-      resultEl.innerHTML = `File uploaded — share this code: <span class="code">${code}</span>`;
+      if (error) {
+        document.getElementById("uploadResult").innerText = "❌ Upload failed: " + error.message;
+        return;
+      }
+
+      // Save code → file mapping
+      await supabase.from("file_codes").insert([{ code: code.toString(), path: filePath }]);
+
+      document.getElementById("uploadResult").innerHTML = `
+        ✅ Uploaded! <br>
+        Your code is: <b>${code}</b>
+      `;
     }
 
-    async function downloadFile() {
+    // Get file by code
+    async function getFile() {
       const code = document.getElementById("codeInput").value.trim();
-      const resultEl = document.getElementById("downloadResult");
-      if (!code) return alert("Enter the code.");
+      if (!code) return alert("Enter a 3-digit code.");
 
-      const { data, error: fetchErr } = await supabase.from("file_codes").select("*").eq("code", code).single();
-      if (fetchErr || !data) return resultEl.textContent = "Code not found.";
+      const { data, error } = await supabase
+        .from("file_codes")
+        .select("path")
+        .eq("code", code)
+        .single();
 
-      const { data: urlData } = supabase.storage.from(data.bucket).getPublicUrl(data.file_path);
-      if (!urlData.publicUrl) return resultEl.textContent = "Unable to retrieve file.";
+      if (error || !data) {
+        document.getElementById("fileLink").innerText = "❌ File not found.";
+        return;
+      }
 
-      resultEl.innerHTML = `Your file: <a href="${urlData.publicUrl}" target="_blank">Download</a>`;
+      const { data: publicUrl } = supabase.storage
+        .from(BUCKET)
+        .getPublicUrl(data.path);
+
+      document.getElementById("fileLink").innerHTML = `
+        ✅ File found! <br>
+        <a href="${publicUrl.publicUrl}" target="_blank">Download File</a>
+      `;
     }
   </script>
 </body>

@@ -1,248 +1,248 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vivek • Product Designer</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-  <style>
-    /* Smooth fade-up animation */
-    .fade-up {
-      opacity: 0;
-      transform: translateY(12px);
-      transition: opacity 0.4s ease, transform 0.4s ease;
+// PDF / File Share — React single-file app
+// Save as: src/App.jsx (React + Tailwind)
+// How it works:
+// - Upload a file (pdf, docx, image)
+// - The app generates a random 3-digit code (100-999) and checks Firestore for collisions
+// - The file is uploaded to Firebase Storage under the code, and a Firestore doc maps code -> file metadata + download URL
+// - On another device the user enters the 3-digit code in "Retrieve" and the file becomes available to download
+// Requirements: create a Firebase project, enable Firestore and Storage, add a web app and paste the firebaseConfig below.
+// Deployment: You can deploy to GitHub Pages / Vercel / Netlify. This is a static React app that talks to Firebase.
+
+import React, { useState } from 'react';
+import { initializeApp } from 'firebase/app';
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+// TODO: Replace with your Firebase config (from Firebase Console -> Project Settings -> SDK)
+const firebaseConfig = {
+  apiKey: 'REPLACE_API_KEY',
+  authDomain: 'REPLACE_AUTH_DOMAIN',
+  projectId: 'REPLACE_PROJECT_ID',
+  storageBucket: 'REPLACE_STORAGE_BUCKET',
+  messagingSenderId: 'REPLACE_MESSAGING_SENDER_ID',
+  appId: 'REPLACE_APP_ID',
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+export default function App() {
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [code, setCode] = useState('');
+  const [generatedCode, setGeneratedCode] = useState(null);
+  const [message, setMessage] = useState('');
+  const [retrieveCode, setRetrieveCode] = useState('');
+  const [retrievedFile, setRetrievedFile] = useState(null);
+
+  // Generates a random 3-digit number between 100 and 999
+  function random3Digit() {
+    return Math.floor(Math.random() * 900) + 100; // 100..999
+  }
+
+  // Ensure uniqueness by checking Firestore "files" collection for the code
+  async function unique3Digit() {
+    for (let attempts = 0; attempts < 10; attempts++) {
+      const candidate = random3Digit().toString();
+      const docRef = doc(db, 'files', candidate);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) return candidate;
     }
-    .fade-up.show {
-      opacity: 1;
-      transform: translateY(0);
+    // fallback: return timestamp-based 3 digits (still try to avoid collisions)
+    const fallback = (Date.now() % 900 + 100).toString();
+    return fallback;
+  }
+
+  async function handleUpload(e) {
+    e.preventDefault();
+    if (!file) {
+      setMessage('Please select a file to upload.');
+      return;
     }
-  </style>
-</head>
-<body class="min-h-screen bg-zinc-950 text-zinc-100 selection:bg-indigo-500/30">
+    setUploading(true);
+    setMessage('Generating code and uploading...');
 
-  <!-- Gradient Background -->
-  <div aria-hidden class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-    <div class="absolute -top-40 -left-24 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl"></div>
-    <div class="absolute top-1/2 -right-20 h-96 w-96 rounded-full bg-fuchsia-500/20 blur-3xl"></div>
-    <div class="absolute bottom-0 left-1/3 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl"></div>
-  </div>
+    try {
+      const newCode = await unique3Digit();
+      const storageRef = ref(storage, `shared_files/${newCode}/${file.name}`);
+      // upload file bytes
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
 
-  <!-- Header -->
-  <header class="sticky top-0 z-40 border-b border-white/10 backdrop-blur bg-zinc-950/70">
-    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-      <a href="#home" class="font-semibold tracking-tight flex items-center gap-2">
-        <span class="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-tr from-indigo-500 via-fuchsia-500 to-cyan-500"></span>
-        <span>Vivek • Product Designer</span>
-      </a>
-      <nav class="hidden sm:flex items-center gap-6 text-sm">
-        <a class="hover:text-indigo-300" href="#projects">Work</a>
-        <a class="hover:text-indigo-300" href="#experience">Experience</a>
-        <a class="hover:text-indigo-300" href="#contact">Contact</a>
-        <a id="resumeBtn" href="#" class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 hover:bg-zinc-900">
-          <i data-lucide="download" class="h-4 w-4"></i> Resume
-        </a>
-      </nav>
-    </div>
-  </header>
-
-  <main class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-
-    <!-- Hero -->
-    <section id="home" class="py-20 sm:py-28">
-      <div class="grid lg:grid-cols-2 gap-8 items-center">
-        <div>
-          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight fade-up">
-            Designing products that feel <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-cyan-400">effortless</span> and <span class="underline decoration-indigo-400/60">delightful</span>
-          </h1>
-          <p class="mt-4 text-lg text-zinc-300/80 max-w-xl">
-            I’m Vivek, a product/UX designer who blends research, interaction design, and visual craft to ship outcomes — not just wireframes.
-          </p>
-          <div class="mt-6 flex flex-wrap items-center gap-3">
-            <a href="#projects" class="inline-flex items-center gap-2 rounded-full bg-white text-zinc-900 px-4 py-2 font-medium">
-              See my work <i data-lucide="arrow-up-right" class="h-4 w-4"></i>
-            </a>
-            <a href="#contact" class="inline-flex items-center gap-2 rounded-full border px-4 py-2">
-              Let’s collaborate <i data-lucide="sparkles" class="h-4 w-4"></i>
-            </a>
-          </div>
-          <div class="mt-6 flex items-center gap-4">
-            <a href="https://github.com/" target="_blank" class="opacity-80 hover:opacity-100"><i data-lucide="github"></i></a>
-            <a href="https://linkedin.com/" target="_blank" class="opacity-80 hover:opacity-100"><i data-lucide="linkedin"></i></a>
-            <a href="mailto:hello@example.com" class="opacity-80 hover:opacity-100"><i data-lucide="mail"></i></a>
-          </div>
-        </div>
-        <div class="relative h-64 sm:h-80 lg:h-96 rounded-3xl overflow-hidden ring-1 ring-white/10 fade-up">
-          <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 via-fuchsia-500/20 to-cyan-500/20"></div>
-          <img alt="Hero mock" src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1200&auto=format&fit=crop" class="h-full w-full object-cover" />
-        </div>
-      </div>
-    </section>
-
-    <!-- About -->
-    <section class="py-8">
-      <div class="rounded-2xl bg-zinc-900/50 ring-1 ring-white/10 p-6 md:p-8 fade-up">
-        <h2 class="text-xl sm:text-2xl font-semibold tracking-tight">About</h2>
-        <p class="mt-3 text-zinc-300/80">
-          I craft intuitive experiences through rapid prototyping, usability testing, and thoughtful UI systems. Previously interned on IBM AI & Cloud technology, collaborating with engineers to ship accessible, performant interfaces.
-        </p>
-      </div>
-    </section>
-
-    <!-- Skills -->
-    <section class="py-8">
-      <div class="rounded-2xl bg-zinc-900/50 ring-1 ring-white/10 p-6 md:p-8 fade-up">
-        <h2 class="text-xl sm:text-2xl font-semibold tracking-tight">Skills</h2>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <span class="text-sm rounded-full bg-zinc-900/80 ring-1 ring-white/10 px-3 py-1">User Research</span>
-          <span class="text-sm rounded-full bg-zinc-900/80 ring-1 ring-white/10 px-3 py-1">Wireframing</span>
-          <span class="text-sm rounded-full bg-zinc-900/80 ring-1 ring-white/10 px-3 py-1">Prototyping</span>
-          <!-- ... repeat for all skills -->
-        </div>
-      </div>
-    </section>
-
-    <!-- Projects (filterable) -->
-    <section id="projects" class="py-16">
-      <div class="mb-8 flex items-center justify-between gap-4">
-        <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight">Selected Work</h2>
-        <div class="flex items-center gap-2">
-          <i data-lucide="filter" class="h-5 w-5 opacity-70"></i>
-          <div id="filterButtons" class="flex gap-2 flex-wrap">
-            <!-- JS will insert category buttons -->
-          </div>
-        </div>
-      </div>
-      <div id="projectGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- JS will insert filtered projects -->
-      </div>
-    </section>
-
-    <!-- Experience -->
-    <section id="experience" class="py-16">
-      <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight mb-6">Experience</h2>
-      <div class="grid gap-4">
-        <!-- JS insert -->
-      </div>
-    </section>
-
-    <!-- Contact -->
-    <section id="contact" class="py-16">
-      <div class="rounded-2xl bg-zinc-900/60 ring-1 ring-white/10 p-6 md:p-8 fade-up">
-        <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight">Let’s work together</h2>
-        <p class="mt-2 text-zinc-300/80 max-w-2xl">
-          Have a project or idea? I’m open to freelance and full-time roles. Drop a note and I’ll get back soon.
-        </p>
-        <div class="mt-6 grid sm:grid-cols-2 gap-4">
-          <a href="mailto:hello@example.com" class="rounded-2xl border border-white/10 p-4 hover:bg-zinc-900 flex items-center gap-3"><i data-lucide="mail" class="h-5 w-5"></i> hello@example.com</a>
-          <div class="rounded-2xl border border-white/10 p-4 flex items-center gap-3"><i data-lucide="phone" class="h-5 w-5"></i> +91 90000 00000</div>
-          <div class="rounded-2xl border border-white/10 p-4 flex items-center gap-3"><i data-lucide="map-pin" class="h-5 w-5"></i> Kolkata, India</div>
-          <a href="https://linkedin.com/" target="_blank" class="rounded-2xl border border-white/10 p-4 hover:bg-zinc-900 flex items-center gap-3"><i data-lucide="linkedin" class="h-5 w-5"></i> Connect on LinkedIn</a>
-        </div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- Footer -->
-  <footer class="py-12">
-    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-      <div class="rounded-2xl bg-zinc-900/60 ring-1 ring-white/10 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p class="text-sm text-zinc-400">© <span id="year"></span> Vivek Chaurasia. Crafted with HTML, Tailwind, JS.</p>
-        <div class="flex items-center gap-4">
-          <a href="#home" class="inline-flex items-center gap-2 rounded-full border px-4 py-2">Back to top</a>
-          <a href="#projects" class="inline-flex items-center gap-2 rounded-full bg-white text-zinc-900 px-4 py-2 font-medium">View work</a>
-        </div>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Back to top button -->
-  <button id="backToTop" class="hidden fixed bottom-6 right-6 rounded-full bg-white text-zinc-900 p-3 shadow-xl ring-1 ring-black/5" aria-label="Back to top">↑</button>
-
-  <script>
-    // Lucide icons init
-    lucide.createIcons();
-
-    // Resume download
-    document.getElementById('resumeBtn').addEventListener('click', function(e) {
-      e.preventDefault();
-      const link = document.createElement('a');
-      link.href = 'resume.pdf';
-      link.download = 'Vivek_Chaurasia_Resume.pdf';
-      link.click();
-    });
-
-    // Back to top button
-    const backToTop = document.getElementById('backToTop');
-    window.addEventListener('scroll', () => {
-      if (window.scrollY > 480) backToTop.classList.remove('hidden');
-      else backToTop.classList.add('hidden');
-    });
-    backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-
-    // IntersectionObserver for fade-up animation
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) entry.target.classList.add('show');
+      // Save metadata in Firestore under doc id = newCode
+      await setDoc(doc(db, 'files', newCode), {
+        filename: file.name,
+        contentType: file.type,
+        size: file.size,
+        url,
+        uploadedAt: new Date().toISOString(),
       });
-    }, { threshold: 0.1 });
-    document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 
-    // Projects + Filter
-    const categories = ["All", "Product", "UI", "Web", "Mobile"];
-    const projects = [
-      { title: "SmartPay – UPI Wallet Revamp", blurb: "End-to-end UX case study improving onboarding and P2P flows.", tags: ["Product", "Mobile"], link: "#" },
-      { title: "CampusHub – Student Portal", blurb: "Responsive web app for events, results, and placements.", tags: ["Web", "UI"], link: "#" },
-      { title: "FitTrack – Habit Builder", blurb: "Gamified habit loops and streaks to drive retention.", tags: ["Product", "Mobile"], link: "#" },
-      { title: "QuikCart – Checkout UX", blurb: "Reduced cart abandonment with a 3-step funnel redesign.", tags: ["Web", "UI"], link: "#" }
-    ];
-    let currentFilter = "All";
-    const filterContainer = document.getElementById('filterButtons');
-    const grid = document.getElementById('projectGrid');
-
-    function renderProjects() {
-      grid.innerHTML = '';
-      projects
-        .filter(p => currentFilter === "All" || p.tags.includes(currentFilter))
-        .forEach(p => {
-          const card = document.createElement('a');
-          card.href = p.link;
-          card.target = "_blank";
-          card.className = "group rounded-2xl bg-zinc-900/60 ring-1 ring-white/10 hover:ring-indigo-400/40 p-5 backdrop-blur-sm shadow-sm hover:shadow-lg transition relative overflow-hidden fade-up";
-          card.innerHTML = `
-            <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-gradient-to-tr from-indigo-500/10 via-fuchsia-500/10 to-cyan-500/10"></div>
-            <div class="flex items-start justify-between gap-4">
-              <h3 class="text-lg font-semibold leading-tight">${p.title}</h3>
-              <i data-lucide="external-link" class="h-4 w-4 shrink-0 opacity-70 group-hover:opacity-100"></i>
-            </div>
-            <p class="mt-2 text-sm text-zinc-300/80">${p.blurb}</p>
-            <div class="mt-4 flex flex-wrap gap-2">
-              ${p.tags.map(t => `<span class="text-xs rounded-full bg-zinc-800/80 ring-1 ring-white/10 px-2 py-1">${t}</span>`).join('')}
-            </div>
-          `;
-          grid.appendChild(card);
-        });
-      lucide.createIcons();
+      setGeneratedCode(newCode);
+      setMessage('Upload complete. Share the 3-digit code with the other device.');
+    } catch (err) {
+      console.error(err);
+      setMessage('Upload failed: ' + err.message);
+    } finally {
+      setUploading(false);
     }
+  }
 
-    categories.forEach(cat => {
-      const btn = document.createElement('button');
-      btn.textContent = cat;
-      btn.className = `rounded-full border px-3 py-1 text-sm transition ${currentFilter === cat ? "bg-indigo-500/20 border-indigo-400/40" : "border-zinc-700 hover:bg-zinc-800/60"}`;
-      btn.addEventListener('click', () => {
-        currentFilter = cat;
-        document.querySelectorAll('#filterButtons button').forEach(b => b.classList.remove("bg-indigo-500/20","border-indigo-400/40"));
-        btn.classList.add("bg-indigo-500/20","border-indigo-400/40");
-        renderProjects();
-      });
-      filterContainer.appendChild(btn);
-    });
+  async function handleRetrieve(e) {
+    e.preventDefault();
+    setRetrievedFile(null);
+    setMessage('Looking up code...');
+    const codeTrim = retrieveCode.trim();
+    if (!/^[0-9]{3}$/.test(codeTrim)) {
+      setMessage('Please enter a valid 3-digit code (100-999).');
+      return;
+    }
+    try {
+      const docRef = doc(db, 'files', codeTrim);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) {
+        setMessage('No file found for that code.');
+        return;
+      }
+      const data = snap.data();
+      setRetrievedFile(data);
+      setMessage('File found — you can download below.');
+    } catch (err) {
+      console.error(err);
+      setMessage('Lookup failed: ' + err.message);
+    }
+  }
 
-    renderProjects();
-    document.getElementById('year').textContent = new Date().getFullYear();
-  </script>
-</body>
-</html>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-50 p-6 flex items-center justify-center">
+      <div className="max-w-3xl w-full bg-white/90 backdrop-blur-md rounded-2xl shadow-xl p-6">
+        <header className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-extrabold">FileShare • 3‑Digit Access</h1>
+            <p className="text-sm text-slate-600">Upload a file, get a short 3-digit code — enter it on another device to download.</p>
+          </div>
+          <div className="text-right">
+            <span className="text-xs text-slate-500">Professional · Secure · Fast</span>
+          </div>
+        </header>
+
+        <main className="grid gap-6 md:grid-cols-2">
+          {/* Upload Card */}
+          <form onSubmit={handleUpload} className="p-4 border rounded-lg">
+            <h2 className="font-semibold mb-2">Upload file</h2>
+            <input
+              type="file"
+              accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
+              onChange={(ev) => setFile(ev.target.files?.[0] ?? null)}
+              className="mb-3"
+            />
+            <div className="text-sm text-slate-600 mb-3">
+              Allowed: PDF, DOC, DOCX, JPG, PNG. Max file size depends on your Firebase Storage rules.
+            </div>
+            <button
+              type="submit"
+              disabled={uploading}
+              className="px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition"
+            >
+              {uploading ? 'Uploading...' : 'Upload & Generate Code'}
+            </button>
+
+            {generatedCode && (
+              <div className="mt-4 p-3 bg-slate-50 rounded-md border">
+                <div className="text-sm text-slate-500">Your 3-digit code</div>
+                <div className="text-3xl font-mono mt-1">{generatedCode}</div>
+                <div className="text-xs text-slate-500 mt-1">Share this number with the other device to retrieve the file.</div>
+              </div>
+            )}
+          </form>
+
+          {/* Retrieve Card */}
+          <form onSubmit={handleRetrieve} className="p-4 border rounded-lg">
+            <h2 className="font-semibold mb-2">Retrieve file</h2>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="Enter 3-digit code, e.g. 237"
+              value={retrieveCode}
+              onChange={(e) => setRetrieveCode(e.target.value)}
+              className="w-full mb-3 p-2 rounded-md border"
+              maxLength={3}
+            />
+            <button type="submit" className="px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition">
+              Lookup
+            </button>
+
+            {retrievedFile && (
+              <div className="mt-4 p-3 bg-slate-50 rounded-md border">
+                <div className="font-medium">{retrievedFile.filename}</div>
+                <div className="text-sm text-slate-500">Uploaded: {new Date(retrievedFile.uploadedAt).toLocaleString()}</div>
+                <a
+                  className="inline-block mt-3 px-3 py-2 rounded-md underline"
+                  href={retrievedFile.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  Download / Open
+                </a>
+              </div>
+            )}
+          </form>
+        </main>
+
+        <footer className="mt-6 text-xs text-slate-500">
+          <strong>Notes:</strong>
+          <ul className="list-disc ml-5 mt-1">
+            <li>3-digit codes are meant for short-term quick sharing. If you expect heavy usage, consider longer codes or authenticated accounts.</li>
+            <li>Files stay in Firebase Storage until you remove them; implement TTL cleanup in your backend or Cloud Function if desired.</li>
+            <li>Make sure your Firebase Storage & Firestore security rules are configured to prevent abuse (the sample expects public read access to individual files via URL — secure as needed).</li>
+          </ul>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+/*
+ Additional files & setup (brief):
+ - package.json: React + Firebase + Tailwind
+ - Tailwind: install and configure per the official docs
+ - Firebase: enable Firestore and Storage
+ - Firestore rules (simple example, tighten for production):
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /files/{fileId} {
+         allow read, write: if true; // change in production
+       }
+     }
+   }
+ - Storage rules (simple):
+   service firebase.storage {
+     match /b/{bucket}/o {
+       match /shared_files/{allPaths=**} {
+         allow read, write: if true; // change in production
+       }
+     }
+   }
+
+ Deployment steps:
+ 1. Create Firebase project and web app; update firebaseConfig in this file.
+ 2. Install deps: npm install react firebase
+ 3. Build and deploy with your preferred host (Vercel / Netlify / GitHub Pages).
+
+ Security recommendations (must-read before production):
+ - Don't use publicly writable rules in production. Require reCAPTCHA or authenticated uploads.
+ - Rate-limit uploads and lookups (Cloud Functions or API gateway).
+ - Consider generating longer codes or per-user authentication.
+*/

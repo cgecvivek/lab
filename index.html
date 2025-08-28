@@ -19,26 +19,20 @@
 
     <!-- File Input -->
     <input type="file" id="fileInput" class="block w-full mb-3 text-sm file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:font-semibold hover:file:bg-indigo-700" />
+
     <div id="fileMeta" class="text-xs text-slate-500 mb-3 hidden"></div>
 
     <!-- Upload Button -->
     <button id="uploadBtn" class="w-full py-2 rounded-xl bg-cyan-600 text-white font-semibold hover:bg-cyan-700 shadow">Upload & Generate Code</button>
 
-    <!-- Status / Code Display -->
+    <!-- Result -->
     <div id="status" class="mt-4 text-sm text-center text-slate-700"></div>
-
-    <!-- Access File -->
-    <div id="accessSection" class="mt-4 hidden">
-      <input type="text" id="codeInput" maxlength="3" placeholder="Enter 3-digit code" class="w-full p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-cyan-600 mb-2"/>
-      <button id="accessBtn" class="w-full py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow">Access File</button>
-      <div id="fileResult" class="mt-2 text-sm text-center text-slate-700"></div>
-    </div>
   </div>
 
   <script src="https://unpkg.com/@supabase/supabase-js"></script>
   <script>
     const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
     const BUCKET = "secondbucket";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -46,10 +40,6 @@
     const uploadBtn = document.getElementById("uploadBtn");
     const fileMeta = document.getElementById("fileMeta");
     const status = document.getElementById("status");
-    const accessSection = document.getElementById("accessSection");
-    const codeInput = document.getElementById("codeInput");
-    const accessBtn = document.getElementById("accessBtn");
-    const fileResult = document.getElementById("fileResult");
 
     // Show file info
     fileInput.addEventListener("change", () => {
@@ -59,7 +49,6 @@
       fileMeta.textContent = `${f.name} • ${(f.size/1024/1024).toFixed(2)} MB • ${f.type || 'unknown type'}`;
     });
 
-    // Upload handler
     uploadBtn.addEventListener("click", async () => {
       const file = fileInput.files[0];
       if(!file){ status.textContent = "⚠️ Please choose a file first!"; return; }
@@ -70,32 +59,16 @@
       const code = Math.floor(100 + Math.random()*900).toString();
       const path = `${code}/${file.name}`;
 
-      // Upload file
+      // Upload file to Supabase
       const { error: uploadError } = await supabaseClient.storage.from(BUCKET).upload(path, file, { upsert: true });
       if(uploadError){ status.textContent = "❌ Upload failed: " + uploadError.message; uploadBtn.disabled=false; return; }
 
-      // Insert code in table
+      // Insert code into table
       const { error: insertError } = await supabaseClient.from("file_codes").insert([{ code, path }]);
       if(insertError){ status.textContent = "⚠️ DB insert failed: " + insertError.message; uploadBtn.disabled=false; return; }
 
       status.textContent = `✅ Uploaded! Your code is: ${code}`;
-      accessSection.classList.remove('hidden');
-      codeInput.value = code;
-
       uploadBtn.disabled = false;
-    });
-
-    // Access file
-    accessBtn.addEventListener("click", async () => {
-      const code = codeInput.value.trim();
-      if(!/^\d{3}$/.test(code)){ fileResult.textContent = "⚠️ Enter a valid 3-digit code."; return; }
-
-      fileResult.textContent = "Fetching file...";
-      const { data, error } = await supabaseClient.from("file_codes").select('*').eq('code', code).single();
-      if(error || !data){ fileResult.textContent = "❌ No file found for this code."; return; }
-
-      const { data: publicData } = supabaseClient.storage.from(BUCKET).getPublicUrl(data.path);
-      fileResult.innerHTML = `✅ File found: <a href="${publicData.publicUrl}" target="_blank" class="text-indigo-700 underline">${data.path.split('/')[1]}</a>`;
     });
   </script>
 

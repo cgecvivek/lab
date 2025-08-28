@@ -11,29 +11,31 @@
     .glass { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<div class="max-w-lg w-full glass rounded-2xl shadow-xl p-6">
+  <h1 class="text-2xl font-extrabold text-slate-800 mb-4 text-center">SnapShare</h1>
+  <p class="text-sm text-slate-600 mb-6 text-center">
+    Upload a PDF, Word document, or image. Get a <strong>3-digit code</strong> to access it on any device.
+  </p>
 
-  <div class="max-w-lg w-full glass rounded-2xl shadow-xl p-6">
-    <h1 class="text-2xl font-extrabold text-slate-800 mb-4 text-center">SnapShare</h1>
-    <p class="text-sm text-slate-600 mb-6 text-center">Upload a PDF, Word document, or image. Get a <strong>3-digit code</strong> to access it on any device.</p>
+  <!-- File Input -->
+  <input type="file" id="fileInput" class="block w-full mb-3 text-sm file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:font-semibold hover:file:bg-indigo-700" />
+  <div id="fileMeta" class="text-xs text-slate-500 mb-3 hidden"></div>
 
-    <!-- File Input -->
-    <input type="file" id="fileInput" class="block w-full mb-3 text-sm file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:font-semibold hover:file:bg-indigo-700" />
+  <!-- Upload Button -->
+  <button id="uploadBtn" class="w-full py-2 rounded-xl bg-cyan-600 text-white font-semibold hover:bg-cyan-700 shadow mb-4">Upload & Generate Code</button>
 
-    <div id="fileMeta" class="text-xs text-slate-500 mb-3 hidden"></div>
+  <!-- Upload Status -->
+  <div id="status" class="mt-2 text-sm text-center text-slate-700"></div>
 
-    <!-- Upload Button -->
-    <button id="uploadBtn" class="w-full py-2 rounded-xl bg-cyan-600 text-white font-semibold hover:bg-cyan-700 shadow">Upload & Generate Code</button>
+  <hr class="my-4 border-slate-200">
 
-    <!-- Result -->
-    <div id="status" class="mt-4 text-sm text-center text-slate-700"></div>
-  </div>
   <!-- Access File Section -->
-<div class="mt-4 text-center">
-  <input type="text" id="accessCode" maxlength="3" placeholder="Enter 3-digit code" class="p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-600 mb-2 w-2/3"/>
-  <button id="accessBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow">Access File</button>
-  <div id="accessStatus" class="mt-2 text-sm text-slate-700"></div>
+  <p class="text-sm text-slate-600 mb-2 text-center">Enter a 3-digit code to access a file:</p>
+  <input type="text" id="accessCode" maxlength="3" placeholder="Enter code" class="p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-600 mb-2 w-full"/>
+  <button id="accessBtn" class="w-full py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow mb-2">Access File</button>
+  <div id="accessStatus" class="mt-2 text-sm text-center text-slate-700"></div>
 </div>
+  
 
 <script>
   const accessBtn = document.getElementById("accessBtn");

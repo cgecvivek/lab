@@ -28,6 +28,48 @@
     <!-- Result -->
     <div id="status" class="mt-4 text-sm text-center text-slate-700"></div>
   </div>
+  <!-- Access File Section -->
+<div class="mt-4 text-center">
+  <input type="text" id="accessCode" maxlength="3" placeholder="Enter 3-digit code" class="p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-600 mb-2 w-2/3"/>
+  <button id="accessBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow">Access File</button>
+  <div id="accessStatus" class="mt-2 text-sm text-slate-700"></div>
+</div>
+
+<script>
+  const accessBtn = document.getElementById("accessBtn");
+  const accessCode = document.getElementById("accessCode");
+  const accessStatus = document.getElementById("accessStatus");
+
+  accessBtn.addEventListener("click", async () => {
+    const code = accessCode.value.trim();
+    if(!/^\d{3}$/.test(code)){
+      accessStatus.textContent = "⚠️ Enter a valid 3-digit code.";
+      return;
+    }
+
+    accessStatus.textContent = "Fetching file...";
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("file_codes")
+        .select("*")
+        .eq("code", code)
+        .single();
+
+      if(error || !data){
+        accessStatus.textContent = "❌ No file found for this code.";
+        return;
+      }
+
+      const { data: urlData } = supabaseClient.storage.from(BUCKET).getPublicUrl(data.path);
+      accessStatus.innerHTML = `✅ File found: <a href="${urlData.publicUrl}" target="_blank" class="text-indigo-600 hover:underline">Open / Download</a>`;
+    } catch(err){
+      console.error(err);
+      accessStatus.textContent = "❌ Error fetching file.";
+    }
+  });
+</script>
+  
 
   <script src="https://unpkg.com/@supabase/supabase-js"></script>
   <script>

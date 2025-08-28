@@ -2,53 +2,66 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>File Share Test</title>
+  <title>File Downloader</title>
   <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h2>File Upload Test</h2>
-  <input type="file" id="fileInput">
-  <button id="uploadBtn">Upload & Generate Code</button>
-  <p id="status"></p>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+  <div class="bg-white p-8 rounded-2xl shadow-lg w-96 text-center">
+    <h1 class="text-2xl font-bold mb-6 text-gray-800">📥 Download File</h1>
+
+    <input type="text" id="codeInput" placeholder="Enter 3-digit code"
+           class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:ring focus:ring-blue-300">
+
+    <button id="fetchBtn" 
+            class="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700">
+      Fetch File
+    </button>
+
+    <p id="status" class="mt-4 text-gray-700 font-medium"></p>
+  </div>
 
   <script>
-    const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co"; // your project
+    const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
-    const BUCKET = "secondbucket"; // must exist in Supabase
+    const BUCKET = "secondbucket";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    document.getElementById("uploadBtn").addEventListener("click", async () => {
-      const file = document.getElementById("fileInput").files[0];
-      if (!file) {
-        document.getElementById("status").textContent = "⚠️ Please choose a file first!";
+    document.getElementById("fetchBtn").addEventListener("click", async () => {
+      const code = document.getElementById("codeInput").value.trim();
+      const status = document.getElementById("status");
+
+      if (!code) {
+        status.textContent = "⚠️ Please enter a code!";
         return;
       }
 
-      // Generate 3-digit random code
-      const code = Math.floor(100 + Math.random() * 900).toString();
-
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabaseClient.storage
-        .from(BUCKET)
-        .upload(`${code}/${file.name}`, file, { upsert: true });
-
-      if (uploadError) {
-        document.getElementById("status").textContent = "❌ Upload failed: " + uploadError.message;
-        return;
-      }
-
-      // Insert into file_codes table
-      const { error: insertError } = await supabaseClient
+      // Fetch path from DB
+      const { data, error } = await supabaseClient
         .from("file_codes")
-        .insert([{ code: code, path: `${code}/${file.name}` }]);
+        .select("path")
+        .eq("code", code)
+        .single();
 
-      if (insertError) {
-        document.getElementById("status").textContent = "⚠️ Upload ok but DB insert failed: " + insertError.message;
+      if (error || !data) {
+        status.textContent = "❌ Invalid code or file not found!";
         return;
       }
 
-      // Show success + code
-      document.getElementById("status").textContent = `✅ Uploaded! Your code is: ${code}`;
+      // Get signed URL (valid for 5 mins)
+      const { data: urlData, error: urlError } = await supabaseClient.storage
+        .from(BUCKET)
+        .createSignedUrl(data.path, 300);
+
+      if (urlError) {
+        status.textContent = "❌ Error generating download link!";
+        return;
+      }
+
+      // Show download link
+      status.innerHTML = `✅ File ready: <a href="${urlData.signedUrl}" 
+        target="_blank" class="text-blue-600 underline">Download</a>`;
     });
   </script>
 </body>

@@ -2,67 +2,159 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>File Downloader</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📂 File Share</title>
   <script src="https://unpkg.com/@supabase/supabase-js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #4e54c8, #8f94fb);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .card {
+      background: #fff;
+      color: #333;
+      border-radius: 16px;
+      padding: 30px;
+      width: 360px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      text-align: center;
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 20px;
+      color: #4e54c8;
+    }
+    input[type="file"], input[type="text"] {
+      margin: 10px 0;
+      padding: 8px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    button {
+      background: #4e54c8;
+      color: #fff;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 8px;
+      margin: 8px 0;
+      width: 100%;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #3639a4;
+    }
+    .code-box {
+      font-size: 26px;
+      font-weight: bold;
+      color: #4e54c8;
+      margin: 12px 0;
+    }
+    .link-box {
+      margin-top: 10px;
+      word-break: break-word;
+      font-size: 14px;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<body>
+  <div class="card">
+    <h1>📂 Quick File Share</h1>
 
-  <div class="bg-white p-8 rounded-2xl shadow-lg w-96 text-center">
-    <h1 class="text-2xl font-bold mb-6 text-gray-800">📥 Download File</h1>
+    <!-- Upload -->
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">Upload & Generate Code</button>
+    <div id="uploadResult"></div>
 
-    <input type="text" id="codeInput" placeholder="Enter 3-digit code"
-           class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:ring focus:ring-blue-300">
+    <hr>
 
-    <button id="fetchBtn" 
-            class="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700">
-      Fetch File
-    </button>
-
-    <p id="status" class="mt-4 text-gray-700 font-medium"></p>
+    <!-- Retrieve -->
+    <input type="text" id="codeInput" placeholder="Enter 3-digit code">
+    <button onclick="fetchFile()">Fetch File</button>
+    <div id="fetchResult"></div>
   </div>
 
   <script>
-    const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
-    const BUCKET = "secondbucket";
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co"; // replace if needed
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w"; 
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    document.getElementById("fetchBtn").addEventListener("click", async () => {
-      const code = document.getElementById("codeInput").value.trim();
-      const status = document.getElementById("status");
+    async function uploadFile() {
+      const fileInput = document.getElementById('fileInput');
+      const resultBox = document.getElementById('uploadResult');
+      if (!fileInput.files.length) {
+        alert("Please select a file.");
+        return;
+      }
+      const file = fileInput.files[0];
+      const code = Math.floor(100 + Math.random() * 900).toString();
+      const filePath = `${Date.now()}_${file.name}`;
 
-      if (!code) {
-        status.textContent = "⚠️ Please enter a code!";
+      // Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('secondbucket')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        resultBox.innerHTML = `<p style="color:red">❌ Upload failed: ${uploadError.message}</p>`;
         return;
       }
 
-      // Fetch path from DB
-      const { data, error } = await supabaseClient
-        .from("file_codes")
-        .select("path")
-        .eq("code", code)
+      // Save mapping in table
+      const { error: dbError } = await supabase
+        .from('file_codes')
+        .insert([{ code, path: filePath }]);
+
+      if (dbError) {
+        resultBox.innerHTML = `<p style="color:red">❌ Database error: ${dbError.message}</p>`;
+        return;
+      }
+
+      resultBox.innerHTML = `
+        ✅ Uploaded! <br>
+        <div class="code-box">${code}</div>
+        Share this code to download on another device.
+      `;
+    }
+
+    async function fetchFile() {
+      const code = document.getElementById('codeInput').value.trim();
+      const resultBox = document.getElementById('fetchResult');
+      if (!code) {
+        alert("Please enter a code.");
+        return;
+      }
+
+      // Look up path
+      const { data, error } = await supabase
+        .from('file_codes')
+        .select('path')
+        .eq('code', code)
         .single();
 
       if (error || !data) {
-        status.textContent = "❌ Invalid code or file not found!";
+        resultBox.innerHTML = `<p style="color:red">❌ Invalid code</p>`;
         return;
       }
 
-      // Get signed URL (valid for 5 mins)
-      const { data: urlData, error: urlError } = await supabaseClient.storage
-        .from(BUCKET)
-        .createSignedUrl(data.path, 300);
+      // Get public URL
+      const { data: publicUrl } = supabase
+        .storage
+        .from('secondbucket')
+        .getPublicUrl(data.path);
 
-      if (urlError) {
-        status.textContent = "❌ Error generating download link!";
-        return;
-      }
-
-      // Show download link
-      status.innerHTML = `✅ File ready: <a href="${urlData.signedUrl}" 
-        target="_blank" class="text-blue-600 underline">Download</a>`;
-    });
+      resultBox.innerHTML = `
+        ✅ File ready: <br>
+        <div class="link-box"><a href="${publicUrl.publicUrl}" target="_blank">${publicUrl.publicUrl}</a></div>
+      `;
+    }
   </script>
 </body>
 </html>

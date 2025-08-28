@@ -1,55 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>File Share Test</title>
-<script src="https://unpkg.com/@supabase/supabase-js"></script>
-<style>
-  body { font-family: Arial, sans-serif; padding: 20px; background: #f0f4f8; }
-  h2 { color: #333; }
-  input, button { padding: 8px 12px; margin: 5px 0; }
-  button { cursor: pointer; background: #0ea5e9; color: white; border: none; border-radius: 4px; }
-  #status { margin-top: 10px; font-weight: bold; }
-</style>
+  <meta charset="UTF-8">
+  <title>File Share Test</title>
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
 </head>
 <body>
-<h2>File Upload Test</h2>
-<input type="file" id="fileInput">
-<button id="uploadBtn">Upload & Generate Code</button>
-<p id="status"></p>
+  <h2>File Upload Test</h2>
+  <input type="file" id="fileInput">
+  <button id="uploadBtn">Upload & Generate Code</button>
+  <p id="status"></p>
 
-<script>
-const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co"; 
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
-const BUCKET = "secondbucket"; 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <script>
+    const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co"; // your project
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
+    const BUCKET = "secondbucket"; // must exist in Supabase
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-document.getElementById("uploadBtn").addEventListener("click", async () => {
-  const file = document.getElementById("fileInput").files[0];
-  const status = document.getElementById("status");
-  if (!file) { status.textContent = "⚠️ Please choose a file first!"; return; }
+    document.getElementById("uploadBtn").addEventListener("click", async () => {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) {
+        document.getElementById("status").textContent = "⚠️ Please choose a file first!";
+        return;
+      }
 
-  // Generate unique 3-digit code
-  let code;
-  for (let i = 0; i < 10; i++) {
-    code = (100 + Math.floor(Math.random() * 900)).toString();
-    const { data } = await supabase.from("file_codes").select("code").eq("code", code).maybeSingle();
-    if (!data) break;
-  }
+      // Generate 3-digit random code
+      const code = Math.floor(100 + Math.random() * 900).toString();
 
-  const path = `${code}_${file.name}`;
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabaseClient.storage
+        .from(BUCKET)
+        .upload(`${code}/${file.name}`, file, { upsert: true });
 
-  // Upload file
-  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
-  if (uploadError) { status.textContent = "❌ Upload failed: " + uploadError.message; return; }
+      if (uploadError) {
+        document.getElementById("status").textContent = "❌ Upload failed: " + uploadError.message;
+        return;
+      }
 
-  // Insert code and path into table
-  const { error: insertError } = await supabase.from("file_codes").insert([{ code, path }]);
-  if (insertError) { status.textContent = "⚠️ DB insert failed: " + insertError.message; return; }
+      // Insert into file_codes table
+      const { error: insertError } = await supabaseClient
+        .from("file_codes")
+        .insert([{ code: code, path: `${code}/${file.name}` }]);
 
-  status.textContent = `✅ Uploaded! Your 3-digit code is: ${code}`;
-});
-</script>
+      if (insertError) {
+        document.getElementById("status").textContent = "⚠️ Upload ok but DB insert failed: " + insertError.message;
+        return;
+      }
+
+      // Show success + code
+      document.getElementById("status").textContent = `✅ Uploaded! Your code is: ${code}`;
+    });
+  </script>
 </body>
 </html>

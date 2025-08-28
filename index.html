@@ -1,248 +1,259 @@
-// PDF / File Share — React single-file app
-// Save as: src/App.jsx (React + Tailwind)
-// How it works:
-// - Upload a file (pdf, docx, image)
-// - The app generates a random 3-digit code (100-999) and checks Firestore for collisions
-// - The file is uploaded to Firebase Storage under the code, and a Firestore doc maps code -> file metadata + download URL
-// - On another device the user enters the 3-digit code in "Retrieve" and the file becomes available to download
-// Requirements: create a Firebase project, enable Firestore and Storage, add a web app and paste the firebaseConfig below.
-// Deployment: You can deploy to GitHub Pages / Vercel / Netlify. This is a static React app that talks to Firebase.
-
-import React, { useState } from 'react';
-import { initializeApp } from 'firebase/app';
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-} from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-
-// TODO: Replace with your Firebase config (from Firebase Console -> Project Settings -> SDK)
-const firebaseConfig = {
-  apiKey: 'REPLACE_API_KEY',
-  authDomain: 'REPLACE_AUTH_DOMAIN',
-  projectId: 'REPLACE_PROJECT_ID',
-  storageBucket: 'REPLACE_STORAGE_BUCKET',
-  messagingSenderId: 'REPLACE_MESSAGING_SENDER_ID',
-  appId: 'REPLACE_APP_ID',
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const storage = getStorage(app);
-
-export default function App() {
-  const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [code, setCode] = useState('');
-  const [generatedCode, setGeneratedCode] = useState(null);
-  const [message, setMessage] = useState('');
-  const [retrieveCode, setRetrieveCode] = useState('');
-  const [retrievedFile, setRetrievedFile] = useState(null);
-
-  // Generates a random 3-digit number between 100 and 999
-  function random3Digit() {
-    return Math.floor(Math.random() * 900) + 100; // 100..999
-  }
-
-  // Ensure uniqueness by checking Firestore "files" collection for the code
-  async function unique3Digit() {
-    for (let attempts = 0; attempts < 10; attempts++) {
-      const candidate = random3Digit().toString();
-      const docRef = doc(db, 'files', candidate);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) return candidate;
-    }
-    // fallback: return timestamp-based 3 digits (still try to avoid collisions)
-    const fallback = (Date.now() % 900 + 100).toString();
-    return fallback;
-  }
-
-  async function handleUpload(e) {
-    e.preventDefault();
-    if (!file) {
-      setMessage('Please select a file to upload.');
-      return;
-    }
-    setUploading(true);
-    setMessage('Generating code and uploading...');
-
-    try {
-      const newCode = await unique3Digit();
-      const storageRef = ref(storage, `shared_files/${newCode}/${file.name}`);
-      // upload file bytes
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-
-      // Save metadata in Firestore under doc id = newCode
-      await setDoc(doc(db, 'files', newCode), {
-        filename: file.name,
-        contentType: file.type,
-        size: file.size,
-        url,
-        uploadedAt: new Date().toISOString(),
-      });
-
-      setGeneratedCode(newCode);
-      setMessage('Upload complete. Share the 3-digit code with the other device.');
-    } catch (err) {
-      console.error(err);
-      setMessage('Upload failed: ' + err.message);
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleRetrieve(e) {
-    e.preventDefault();
-    setRetrievedFile(null);
-    setMessage('Looking up code...');
-    const codeTrim = retrieveCode.trim();
-    if (!/^[0-9]{3}$/.test(codeTrim)) {
-      setMessage('Please enter a valid 3-digit code (100-999).');
-      return;
-    }
-    try {
-      const docRef = doc(db, 'files', codeTrim);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) {
-        setMessage('No file found for that code.');
-        return;
-      }
-      const data = snap.data();
-      setRetrievedFile(data);
-      setMessage('File found — you can download below.');
-    } catch (err) {
-      console.error(err);
-      setMessage('Lookup failed: ' + err.message);
-    }
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-50 p-6 flex items-center justify-center">
-      <div className="max-w-3xl w-full bg-white/90 backdrop-blur-md rounded-2xl shadow-xl p-6">
-        <header className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-extrabold">FileShare • 3‑Digit Access</h1>
-            <p className="text-sm text-slate-600">Upload a file, get a short 3-digit code — enter it on another device to download.</p>
-          </div>
-          <div className="text-right">
-            <span className="text-xs text-slate-500">Professional · Secure · Fast</span>
-          </div>
-        </header>
-
-        <main className="grid gap-6 md:grid-cols-2">
-          {/* Upload Card */}
-          <form onSubmit={handleUpload} className="p-4 border rounded-lg">
-            <h2 className="font-semibold mb-2">Upload file</h2>
-            <input
-              type="file"
-              accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
-              onChange={(ev) => setFile(ev.target.files?.[0] ?? null)}
-              className="mb-3"
-            />
-            <div className="text-sm text-slate-600 mb-3">
-              Allowed: PDF, DOC, DOCX, JPG, PNG. Max file size depends on your Firebase Storage rules.
-            </div>
-            <button
-              type="submit"
-              disabled={uploading}
-              className="px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition"
-            >
-              {uploading ? 'Uploading...' : 'Upload & Generate Code'}
-            </button>
-
-            {generatedCode && (
-              <div className="mt-4 p-3 bg-slate-50 rounded-md border">
-                <div className="text-sm text-slate-500">Your 3-digit code</div>
-                <div className="text-3xl font-mono mt-1">{generatedCode}</div>
-                <div className="text-xs text-slate-500 mt-1">Share this number with the other device to retrieve the file.</div>
-              </div>
-            )}
-          </form>
-
-          {/* Retrieve Card */}
-          <form onSubmit={handleRetrieve} className="p-4 border rounded-lg">
-            <h2 className="font-semibold mb-2">Retrieve file</h2>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              placeholder="Enter 3-digit code, e.g. 237"
-              value={retrieveCode}
-              onChange={(e) => setRetrieveCode(e.target.value)}
-              className="w-full mb-3 p-2 rounded-md border"
-              maxLength={3}
-            />
-            <button type="submit" className="px-4 py-2 rounded-xl shadow-sm hover:shadow-md transition">
-              Lookup
-            </button>
-
-            {retrievedFile && (
-              <div className="mt-4 p-3 bg-slate-50 rounded-md border">
-                <div className="font-medium">{retrievedFile.filename}</div>
-                <div className="text-sm text-slate-500">Uploaded: {new Date(retrievedFile.uploadedAt).toLocaleString()}</div>
-                <a
-                  className="inline-block mt-3 px-3 py-2 rounded-md underline"
-                  href={retrievedFile.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  Download / Open
-                </a>
-              </div>
-            )}
-          </form>
-        </main>
-
-        <footer className="mt-6 text-xs text-slate-500">
-          <strong>Notes:</strong>
-          <ul className="list-disc ml-5 mt-1">
-            <li>3-digit codes are meant for short-term quick sharing. If you expect heavy usage, consider longer codes or authenticated accounts.</li>
-            <li>Files stay in Firebase Storage until you remove them; implement TTL cleanup in your backend or Cloud Function if desired.</li>
-            <li>Make sure your Firebase Storage & Firestore security rules are configured to prevent abuse (the sample expects public read access to individual files via URL — secure as needed).</li>
-          </ul>
-        </footer>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SnapShare • 3‑Digit File Access</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="description" content="Upload a file and get a 3‑digit code to share it instantly across devices." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; }
+    .glass { background: rgba(255,255,255,.9); backdrop-filter: blur(10px); }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-50 via-sky-50 to-cyan-100">
+  <div class="max-w-5xl mx-auto p-6">
+    <header class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">SnapShare <span class="text-cyan-600">•</span> 3‑Digit File Access</h1>
+        <p class="text-slate-600 mt-1">Upload a PDF, Word doc, or photo. Get a <strong>3‑digit</strong> code. Enter the code on any device to download.</p>
       </div>
-    </div>
-  );
-}
+      <a href="#how" class="mt-3 md:mt-0 inline-flex items-center gap-2 text-sm text-indigo-700 hover:underline">How it works</a>
+    </header>
 
-/*
- Additional files & setup (brief):
- - package.json: React + Firebase + Tailwind
- - Tailwind: install and configure per the official docs
- - Firebase: enable Firestore and Storage
- - Firestore rules (simple example, tighten for production):
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /files/{fileId} {
-         allow read, write: if true; // change in production
-       }
-     }
-   }
- - Storage rules (simple):
-   service firebase.storage {
-     match /b/{bucket}/o {
-       match /shared_files/{allPaths=**} {
-         allow read, write: if true; // change in production
-       }
-     }
-   }
+    <main class="grid md:grid-cols-2 gap-6">
+      <!-- Upload Card -->
+      <section class="glass rounded-2xl shadow-xl p-5 border border-slate-100">
+        <h2 class="text-xl font-semibold mb-2">Upload</h2>
+        <p class="text-sm text-slate-600 mb-4">Allowed: PDF, DOC, DOCX, JPG, PNG (others may work). Max size depends on your Firebase Storage rules.</p>
 
- Deployment steps:
- 1. Create Firebase project and web app; update firebaseConfig in this file.
- 2. Install deps: npm install react firebase
- 3. Build and deploy with your preferred host (Vercel / Netlify / GitHub Pages).
+        <label class="block">
+          <input id="fileInput" type="file" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*" />
+        </label>
 
- Security recommendations (must-read before production):
- - Don't use publicly writable rules in production. Require reCAPTCHA or authenticated uploads.
- - Rate-limit uploads and lookups (Cloud Functions or API gateway).
- - Consider generating longer codes or per-user authentication.
-*/
+        <div id="fileMeta" class="hidden mt-3 text-xs text-slate-600"></div>
+
+        <button id="uploadBtn" class="mt-4 px-4 py-2 rounded-xl bg-cyan-600 text-white font-semibold shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Upload & Generate Code</button>
+
+        <div class="mt-4">
+          <div id="progressWrap" class="hidden">
+            <div class="flex justify-between text-xs text-slate-600 mb-1"><span>Uploading…</span><span id="progressPct">0%</span></div>
+            <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+              <div id="progressBar" class="h-2 bg-cyan-600 w-0"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="codePanel" class="hidden mt-5 p-4 rounded-xl border bg-slate-50">
+          <div class="text-xs text-slate-500">Your 3‑digit code</div>
+          <div class="flex items-center gap-3 mt-1">
+            <div id="code" class="text-4xl font-mono tracking-widest">—</div>
+            <button id="copyCode" class="px-3 py-1.5 text-sm rounded-lg border bg-white hover:bg-slate-50">Copy</button>
+          </div>
+          <p class="text-xs text-slate-500 mt-2">Share this number with the other device to retrieve the file.</p>
+        </div>
+      </section>
+
+      <!-- Retrieve Card -->
+      <section class="glass rounded-2xl shadow-xl p-5 border border-slate-100">
+        <h2 class="text-xl font-semibold mb-2">Retrieve</h2>
+        <p class="text-sm text-slate-600 mb-4">Enter the 3‑digit code to fetch the file.</p>
+        <div class="flex items-center gap-2">
+          <input id="retrieveInput" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="e.g. 237" class="w-full p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-cyan-600" />
+          <button id="retrieveBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold shadow hover:shadow-md">Lookup</button>
+        </div>
+        <div id="lookupStatus" class="mt-3 text-sm text-slate-600"></div>
+        <div id="resultCard" class="hidden mt-4 p-4 rounded-xl border bg-slate-50">
+          <div class="flex items-center justify-between">
+            <div>
+              <div id="resultName" class="font-medium">filename</div>
+              <div id="resultMeta" class="text-xs text-slate-500">meta</div>
+            </div>
+            <a id="downloadLink" href="#" target="_blank" rel="noreferrer noopener" class="px-3 py-2 rounded-lg bg-cyan-600 text-white text-sm font-semibold hover:bg-cyan-700">Open / Download</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section id="how" class="mt-8 glass rounded-2xl shadow-xl p-5 border border-slate-100">
+      <h3 class="text-lg font-semibold">How it works</h3>
+      <ol class="list-decimal ml-5 mt-2 text-sm text-slate-600 space-y-1">
+        <li>Upload your file. The site generates a random <strong>3‑digit</strong> code.</li>
+        <li>We store the file in Firebase Storage and save the code → file mapping in Firestore.</li>
+        <li>On any device, enter the code to fetch the download link.</li>
+      </ol>
+      <p class="text-xs text-slate-500 mt-3">Tip: For production, consider longer codes or sign‑in, and set automatic deletion/expiry.</p>
+    </section>
+
+    <footer class="mt-8 text-xs text-slate-500">
+      <p>© <span id="year"></span> SnapShare. For demo use. Secure your Firebase rules before going live.</p>
+    </footer>
+  </div>
+
+  <!-- Firebase SDKs (modular) -->
+  <script type="module">
+    // ======= 1) Configure Firebase =======
+    // Create a Firebase project → Build → Authentication (optional), Firestore, Storage → add a Web App → copy config below.
+    const firebaseConfig = {
+      apiKey: "REPLACE_API_KEY",
+      authDomain: "REPLACE_AUTH_DOMAIN",
+      projectId: "REPLACE_PROJECT_ID",
+      storageBucket: "REPLACE_STORAGE_BUCKET",
+      messagingSenderId: "REPLACE_MESSAGING_SENDER_ID",
+      appId: "REPLACE_APP_ID",
+    };
+
+    // ======= 2) Import Firebase SDKs (version-pinned) =======
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+    // Init
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    // UI Elements
+    const fileInput = document.getElementById('fileInput');
+    const fileMeta = document.getElementById('fileMeta');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const codePanel = document.getElementById('codePanel');
+    const codeEl = document.getElementById('code');
+    const copyBtn = document.getElementById('copyCode');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar = document.getElementById('progressBar');
+    const progressPct = document.getElementById('progressPct');
+
+    const retrieveInput = document.getElementById('retrieveInput');
+    const retrieveBtn = document.getElementById('retrieveBtn');
+    const lookupStatus = document.getElementById('lookupStatus');
+    const resultCard = document.getElementById('resultCard');
+    const resultName = document.getElementById('resultName');
+    const resultMeta = document.getElementById('resultMeta');
+    const downloadLink = document.getElementById('downloadLink');
+
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Show file meta on select
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files?.[0];
+      if (!f) { fileMeta.classList.add('hidden'); return; }
+      fileMeta.classList.remove('hidden');
+      fileMeta.textContent = `${f.name} • ${(f.size/1024/1024).toFixed(2)} MB • ${f.type || 'unknown type'}`;
+    });
+
+    // Generate a random 3‑digit code (100..999)
+    const random3 = () => Math.floor(Math.random()*900) + 100;
+
+    // Ensure uniqueness by checking Firestore doc existence; try up to 10 times
+    async function unique3Digit() {
+      for (let i = 0; i < 10; i++) {
+        const candidate = String(random3());
+        const docRef = doc(db, 'files', candidate);
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) return candidate;
+      }
+      // Fallback (still 3 digits): time‑based
+      return String((Date.now() % 900) + 100);
+    }
+
+    // Upload handler
+    uploadBtn.addEventListener('click', async () => {
+      const f = fileInput.files?.[0];
+      if (!f) { alert('Please select a file first.'); return; }
+
+      try {
+        uploadBtn.disabled = true;
+        codePanel.classList.add('hidden');
+        progressWrap.classList.remove('hidden');
+        progressBar.style.width = '0%';
+        progressPct.textContent = '0%';
+
+        const code = await unique3Digit();
+        const storageRef = ref(storage, `shared_files/${code}/${f.name}`);
+        const task = uploadBytesResumable(storageRef, f);
+
+        task.on('state_changed', (snap) => {
+          const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+          progressBar.style.width = `${pct}%`;
+          progressPct.textContent = pct + '%';
+        });
+
+        await task; // wait for completion
+        const url = await getDownloadURL(storageRef);
+
+        await setDoc(doc(db, 'files', code), {
+          filename: f.name,
+          contentType: f.type,
+          size: f.size,
+          url,
+          uploadedAt: new Date().toISOString(),
+        });
+
+        codeEl.textContent = code;
+        codePanel.classList.remove('hidden');
+      } catch (err) {
+        console.error(err);
+        alert('Upload failed: ' + (err?.message || err));
+      } finally {
+        uploadBtn.disabled = false;
+        progressWrap.classList.add('hidden');
+      }
+    });
+
+    // Copy code
+    copyBtn.addEventListener('click', async () => {
+      const text = codeEl.textContent?.trim();
+      if (!text || text === '—') return;
+      try { await navigator.clipboard.writeText(text); copyBtn.textContent = 'Copied'; setTimeout(()=>copyBtn.textContent='Copy', 1200); } catch {}
+    });
+
+    // Retrieve handler
+    retrieveBtn.addEventListener('click', async () => {
+      const raw = (retrieveInput.value || '').trim();
+      if (!/^[0-9]{3}$/.test(raw)) { lookupStatus.textContent = 'Enter a valid 3‑digit code (100–999).'; resultCard.classList.add('hidden'); return; }
+      lookupStatus.textContent = 'Looking up…';
+      resultCard.classList.add('hidden');
+      try {
+        const docRef = doc(db, 'files', raw);
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) { lookupStatus.textContent = 'No file found for that code.'; return; }
+        const data = snap.data();
+        resultName.textContent = data.filename || 'file';
+        const dt = data.uploadedAt ? new Date(data.uploadedAt) : null;
+        const when = dt ? dt.toLocaleString() : 'unknown time';
+        const sizeMB = data.size ? (data.size/1024/1024).toFixed(2) + ' MB' : '';
+        resultMeta.textContent = `${sizeMB}${sizeMB?' • ':''}${data.contentType || ''} • Uploaded ${when}`;
+        downloadLink.href = data.url;
+        resultCard.classList.remove('hidden');
+        lookupStatus.textContent = 'File found.';
+      } catch (err) {
+        console.error(err);
+        lookupStatus.textContent = 'Lookup failed: ' + (err?.message || err);
+      }
+    });
+  </script>
+
+  <!-- Optional: Example Firestore/Storage rules (harden before production)
+  Firestore:
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /files/{code} {
+        allow read, write: if true; // DEMO ONLY. Replace with proper auth/rules.
+      }
+    }
+  }
+  Storage:
+  service firebase.storage {
+    match /b/{bucket}/o {
+      match /shared_files/{allPaths=**} {
+        allow read, write: if true; // DEMO ONLY. Replace with proper auth/rules.
+      }
+    }
+  }
+  -->
+</body>
+</html>

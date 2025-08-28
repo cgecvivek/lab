@@ -1,116 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>3-Digit File Share</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>File Share with Code</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      color: #333;
+      text-align: center;
+      padding: 40px;
+    }
+    .container {
+      max-width: 500px;
+      margin: auto;
+      background: #fff;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    input, button {
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background: #4facfe;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #00c6ff;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-6">
+<body>
+  <div class="container">
+    <h2>📂 Upload & Share Files</h2>
 
-  <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-lg text-center">
-    <h1 class="text-2xl font-bold text-blue-600 mb-6">📂 3-Digit File Share</h1>
+    <!-- Upload section -->
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">Upload File</button>
+    <p id="uploadResult"></p>
 
-    <!-- Upload Section -->
-    <input type="file" id="fileInput" class="mb-4">
-    <button id="uploadBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-      Upload File
-    </button>
+    <hr>
 
-    <div id="codePanel" class="mt-4 hidden">
-      <p class="text-lg">Your access code is:</p>
-      <p id="code" class="text-3xl font-bold text-green-600"></p>
-    </div>
+    <!-- Access section -->
+    <h3>🔑 Access File by Code</h3>
+    <input type="text" id="codeInput" placeholder="Enter 3-digit code">
+    <button onclick="getFile()">Get File</button>
+    <p id="fileLink"></p>
   </div>
 
-  <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-lg text-center mt-6">
-    <h2 class="text-xl font-bold text-blue-600 mb-4">🔑 Retrieve File</h2>
-    <input id="retrieveInput" type="text" placeholder="Enter 3-digit code"
-      class="border p-2 rounded w-full mb-4 text-center">
-    <button id="retrieveBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
-      Get File
-    </button>
+  <script>
+    // Your Supabase details
+    const SUPABASE_URL = "https://wtpnumytasekbjlaluor.supabase.co"; 
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cG51bXl0YXNla2JqbGFsdW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNjQyMDEsImV4cCI6MjA3MTk0MDIwMX0.KqqqJMPttqbiSh1s5xnHQDj_h4FmWgfmWbu_pcB7yQ8";
 
-    <div id="resultCard" class="hidden mt-4">
-      <p class="font-semibold" id="resultName"></p>
-      <a id="downloadLink" href="#" target="_blank" class="text-blue-600 underline">Download</a>
-    </div>
-  </div>
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  <!-- Supabase SDK -->
-  <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-    // 🔹 Replace with your Supabase project values
-    const supabaseUrl = "https://wtpnumytasekbjlaluor.supabase.co";
-    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cG51bXl0YXNla2JqbGFsdW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNjQyMDEsImV4cCI6MjA3MTk0MDIwMX0.KqqqJMPttqbiSh1s5xnHQDj_h4FmWgfmWbu_pcB7yQ8";
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Store mapping in memory (replace with Supabase table later if needed)
+    let codeToFile = {};
 
     // Upload file
-    async function uploadFile(file) {
-      // Generate unique 3-digit code
-      let code;
-      for (let i = 0; i < 10; i++) {
-        const candidate = (Math.floor(Math.random() * 900) + 100).toString();
-        const { data } = await supabase.from("files").select("code").eq("code", candidate).single();
-        if (!data) { code = candidate; break; }
+    async function uploadFile() {
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) {
+        alert("Please choose a file!");
+        return;
       }
-      if (!code) code = ((Date.now() % 900) + 100).toString();
 
-      // Upload to Supabase Storage
-      const path = `${code}/${file.name}`;
-      const { error: uploadErr } = await supabase.storage.from("Website files").upload(path, file, {
-        cacheControl: "3600",
-        upsert: true
-      });
-      if (uploadErr) throw uploadErr;
+      // Generate random 3-digit code
+      const code = Math.floor(100 + Math.random() * 900);
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage.from("shared_files").getPublicUrl(path);
+      // Upload to Supabase bucket (WebsiteFiles)
+      const { data, error } = await supabase.storage
+        .from('WebsiteFiles')   // ✅ case-sensitive bucket name
+        .upload(`${code}-${file.name}`, file, { upsert: true });
 
-      // Insert metadata into table
-      const { error: dbErr } = await supabase.from("files").insert({
-        code,
-        filename: file.name,
-        size: file.size,
-        content_type: file.type,
-        url: publicUrl
-      });
-      if (dbErr) throw dbErr;
-
-      return code;
+      if (error) {
+        console.error("Upload error:", error.message);
+        document.getElementById("uploadResult").innerText = "❌ Upload failed: " + error.message;
+      } else {
+        codeToFile[code] = `${code}-${file.name}`;
+        document.getElementById("uploadResult").innerText = `✅ File uploaded! Share this code: ${code}`;
+      }
     }
 
-    // Retrieve file
-    async function getFile(code) {
-      const { data, error } = await supabase.from("files").select("*").eq("code", code).single();
-      if (error) return null;
-      return data;
-    }
-
-    // Button handlers
-    document.getElementById("uploadBtn").onclick = async () => {
-      const file = document.getElementById("fileInput").files[0];
-      if (!file) return alert("Please select a file!");
-      try {
-        const code = await uploadFile(file);
-        document.getElementById("code").textContent = code;
-        document.getElementById("codePanel").classList.remove("hidden");
-      } catch (err) {
-        console.error(err);
-        alert("Upload failed: " + err.message);
+    // Get file by code
+    async function getFile() {
+      const code = document.getElementById('codeInput').value.trim();
+      if (!codeToFile[code]) {
+        document.getElementById("fileLink").innerText = "❌ Code not found!";
+        return;
       }
-    };
 
-    document.getElementById("retrieveBtn").onclick = async () => {
-      const code = document.getElementById("retrieveInput").value.trim();
-      if (!code) return alert("Enter a code!");
-      const file = await getFile(code);
-      if (!file) return alert("File not found!");
-      document.getElementById("resultName").textContent = file.filename;
-      document.getElementById("downloadLink").href = file.url;
-      document.getElementById("resultCard").classList.remove("hidden");
-    };
+      // Generate a public URL
+      const { data } = supabase.storage
+        .from('WebsiteFiles')
+        .getPublicUrl(codeToFile[code]);
+
+      document.getElementById("fileLink").innerHTML = `✅ File link: <a href="${data.publicUrl}" target="_blank">Download</a>`;
+    }
   </script>
 </body>
 </html>

@@ -1,76 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SnapShare Upload</title>
-<style>
-body { font-family: Arial, sans-serif; background: #f0f9ff; display: flex; justify-content: center; padding: 50px; }
-.container { background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-h2 { margin-top: 0; }
-input[type=file], button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #cbd5e1; }
-button { background: #0ea5e9; color: white; border: none; font-weight: bold; cursor: pointer; }
-button:hover { background: #0284c7; }
-#code { margin-top: 20px; font-size: 2em; font-family: monospace; text-align: center; }
-#status { margin-top: 10px; text-align: center; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapShare • 3-Digit File Access</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: linear-gradient(to bottom right, #eef2ff, #e0f7fa); }
+    .glass { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); }
+  </style>
 </head>
-<body>
+<body class="min-h-screen flex items-center justify-center p-4">
 
-<div class="container">
-  <h2>SnapShare Upload</h2>
-  <input type="file" id="fileInput">
-  <button id="uploadBtn">Upload & Generate Code</button>
-  <div id="status"></div>
-  <div id="code"></div>
-</div>
+  <div class="max-w-lg w-full glass rounded-2xl shadow-xl p-6">
+    <h1 class="text-2xl font-extrabold text-slate-800 mb-4 text-center">SnapShare</h1>
+    <p class="text-sm text-slate-600 mb-6 text-center">Upload a PDF, Word document, or image. Get a <strong>3-digit code</strong> to access it on any device.</p>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
-<script>
-const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
-const BUCKET = "secondbucket";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <!-- File Input -->
+    <input type="file" id="fileInput" class="block w-full mb-3 text-sm file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:font-semibold hover:file:bg-indigo-700" />
 
-const fileInput = document.getElementById("fileInput");
-const uploadBtn = document.getElementById("uploadBtn");
-const status = document.getElementById("status");
-const codeDiv = document.getElementById("code");
+    <div id="fileMeta" class="text-xs text-slate-500 mb-3 hidden"></div>
 
-function random3() { return Math.floor(100 + Math.random()*900).toString(); }
+    <!-- Upload Button -->
+    <button id="uploadBtn" class="w-full py-2 rounded-xl bg-cyan-600 text-white font-semibold hover:bg-cyan-700 shadow">Upload & Generate Code</button>
 
-async function uniqueCode() {
-  for (let i=0; i<10; i++) {
-    const code = random3();
-    const { data, error } = await supabase.from("file_codes").select("code").eq("code", code).limit(1);
-    if (error) { console.log("Error checking code:", error); continue; }
-    if (data.length === 0) return code;
-  }
-  return (Date.now()%900)+100;
-}
+    <!-- Result -->
+    <div id="status" class="mt-4 text-sm text-center text-slate-700"></div>
+  </div>
 
-uploadBtn.addEventListener("click", async () => {
-  const file = fileInput.files[0];
-  if (!file) { status.textContent = "⚠️ Please select a file."; return; }
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <script>
+    const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
+    const BUCKET = "secondbucket";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  uploadBtn.disabled = true;
-  status.textContent = "Uploading…";
-  codeDiv.textContent = "";
+    const fileInput = document.getElementById("fileInput");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const fileMeta = document.getElementById("fileMeta");
+    const status = document.getElementById("status");
 
-  const code = await uniqueCode();
-  const path = `${code}_${file.name}`;
+    // Show file info
+    fileInput.addEventListener("change", () => {
+      const f = fileInput.files[0];
+      if(!f){ fileMeta.classList.add('hidden'); return; }
+      fileMeta.classList.remove('hidden');
+      fileMeta.textContent = `${f.name} • ${(f.size/1024/1024).toFixed(2)} MB • ${f.type || 'unknown type'}`;
+    });
 
-  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { upsert:true });
-  if (uploadError) { status.textContent = "❌ Upload failed: "+uploadError.message; uploadBtn.disabled=false; return; }
+    uploadBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      if(!file){ status.textContent = "⚠️ Please choose a file first!"; return; }
 
-  const { error: dbError } = await supabase.from("file_codes").insert([{ code, path }]);
-  if (dbError) { status.textContent = "⚠️ DB insert failed: "+dbError.message; uploadBtn.disabled=false; return; }
+      uploadBtn.disabled = true;
+      status.textContent = "Uploading...";
 
-  status.textContent = "✅ Upload successful!";
-  codeDiv.textContent = code;
-  uploadBtn.disabled = false;
-});
-</script>
+      const code = Math.floor(100 + Math.random()*900).toString();
+      const path = `${code}/${file.name}`;
+
+      // Upload file to Supabase
+      const { error: uploadError } = await supabaseClient.storage.from(BUCKET).upload(path, file, { upsert: true });
+      if(uploadError){ status.textContent = "❌ Upload failed: " + uploadError.message; uploadBtn.disabled=false; return; }
+
+      // Insert code into table
+      const { error: insertError } = await supabaseClient.from("file_codes").insert([{ code, path }]);
+      if(insertError){ status.textContent = "⚠️ DB insert failed: " + insertError.message; uploadBtn.disabled=false; return; }
+
+      status.textContent = `✅ Uploaded! Your code is: ${code}`;
+      uploadBtn.disabled = false;
+    });
+  </script>
 
 </body>
 </html>

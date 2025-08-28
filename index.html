@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>File Share with Code</title>
+  <title>3-Digit File Share</title>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     body {
@@ -24,15 +24,15 @@
       margin: 10px;
       border-radius: 8px;
       border: none;
+      font-size: 16px;
+      width: 90%;
     }
     button {
       background: #4CAF50;
       color: white;
       cursor: pointer;
     }
-    button:hover {
-      background: #45a049;
-    }
+    button:hover { background: #45a049; }
     .link-box {
       margin-top: 20px;
       background: rgba(255,255,255,0.1);
@@ -60,64 +60,62 @@
   </div>
 
   <script>
-    // 🔑 Supabase config
+    // Supabase configuration
     const SUPABASE_URL = "https://vlmykouutjxilcykavpj.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbXlrb3V1dGp4aWxjeWthdnBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzODI4OTIsImV4cCI6MjA3MTk1ODg5Mn0.9Fi4Vo3Tqho4GkvUZASEGknmTDteghxm8Hdvsr6RW0w";
     const BUCKET = "secondbucket";
 
     const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Upload function
+    // Generate random 3-digit code
+    function generateCode() {
+      return Math.floor(100 + Math.random() * 900).toString();
+    }
+
     async function uploadFile() {
       const fileInput = document.getElementById("fileInput");
       const file = fileInput.files[0];
+      const uploadResult = document.getElementById("uploadResult");
+
       if (!file) return alert("Please select a file.");
 
-      const code = Math.floor(100 + Math.random() * 900); // random 3-digit code
+      const code = generateCode();
       const filePath = `${code}_${file.name}`;
 
-      const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .upload(filePath, file, { upsert: true });
-
+      // Upload file to public bucket
+      const { data, error } = await supabase.storage.from(BUCKET).upload(filePath, file, { upsert: true });
       if (error) {
-        document.getElementById("uploadResult").innerText = "❌ Upload failed: " + error.message;
+        uploadResult.innerText = "❌ Upload failed: " + error.message;
         return;
       }
 
-      // Save code → file mapping
-      await supabase.from("file_codes").insert([{ code: code.toString(), path: filePath }]);
+      // Save code → file mapping in table
+      const { error: dbError } = await supabase.from("file_codes").insert([{ code, path: filePath }]);
+      if (dbError) {
+        uploadResult.innerText = "❌ DB error: " + dbError.message;
+        return;
+      }
 
-      document.getElementById("uploadResult").innerHTML = `
+      uploadResult.innerHTML = `
         ✅ Uploaded! <br>
         Your code is: <b>${code}</b>
       `;
     }
 
-    // Get file by code
     async function getFile() {
       const code = document.getElementById("codeInput").value.trim();
+      const fileLink = document.getElementById("fileLink");
       if (!code) return alert("Enter a 3-digit code.");
 
-      const { data, error } = await supabase
-        .from("file_codes")
-        .select("path")
-        .eq("code", code)
-        .single();
-
+      const { data, error } = await supabase.from("file_codes").select("path").eq("code", code).single();
       if (error || !data) {
-        document.getElementById("fileLink").innerText = "❌ File not found.";
+        fileLink.innerText = "❌ File not found.";
         return;
       }
 
-      const { data: publicUrl } = supabase.storage
-        .from(BUCKET)
-        .getPublicUrl(data.path);
-
-      document.getElementById("fileLink").innerHTML = `
-        ✅ File found! <br>
-        <a href="${publicUrl.publicUrl}" target="_blank">Download File</a>
-      `;
+      // Get public URL from bucket
+      const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
+      fileLink.innerHTML = `✅ File found: <a href="${publicUrl.publicUrl}" target="_blank">Download</a>`;
     }
   </script>
 </body>

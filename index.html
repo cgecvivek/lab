@@ -1,259 +1,116 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SnapShare • 3‑Digit File Access</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <meta name="description" content="Upload a file and get a 3‑digit code to share it instantly across devices." />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <style>
-    html, body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; }
-    .glass { background: rgba(255,255,255,.9); backdrop-filter: blur(10px); }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>3-Digit File Share</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="min-h-screen bg-gradient-to-br from-indigo-50 via-sky-50 to-cyan-100">
-  <div class="max-w-5xl mx-auto p-6">
-    <header class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6">
-      <div>
-        <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800 tracking-tight">SnapShare <span class="text-cyan-600">•</span> 3‑Digit File Access</h1>
-        <p class="text-slate-600 mt-1">Upload a PDF, Word doc, or photo. Get a <strong>3‑digit</strong> code. Enter the code on any device to download.</p>
-      </div>
-      <a href="#how" class="mt-3 md:mt-0 inline-flex items-center gap-2 text-sm text-indigo-700 hover:underline">How it works</a>
-    </header>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-6">
 
-    <main class="grid md:grid-cols-2 gap-6">
-      <!-- Upload Card -->
-      <section class="glass rounded-2xl shadow-xl p-5 border border-slate-100">
-        <h2 class="text-xl font-semibold mb-2">Upload</h2>
-        <p class="text-sm text-slate-600 mb-4">Allowed: PDF, DOC, DOCX, JPG, PNG (others may work). Max size depends on your Firebase Storage rules.</p>
+  <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-lg text-center">
+    <h1 class="text-2xl font-bold text-blue-600 mb-6">📂 3-Digit File Share</h1>
 
-        <label class="block">
-          <input id="fileInput" type="file" class="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*" />
-        </label>
+    <!-- Upload Section -->
+    <input type="file" id="fileInput" class="mb-4">
+    <button id="uploadBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+      Upload File
+    </button>
 
-        <div id="fileMeta" class="hidden mt-3 text-xs text-slate-600"></div>
-
-        <button id="uploadBtn" class="mt-4 px-4 py-2 rounded-xl bg-cyan-600 text-white font-semibold shadow hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed">Upload & Generate Code</button>
-
-        <div class="mt-4">
-          <div id="progressWrap" class="hidden">
-            <div class="flex justify-between text-xs text-slate-600 mb-1"><span>Uploading…</span><span id="progressPct">0%</span></div>
-            <div class="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div id="progressBar" class="h-2 bg-cyan-600 w-0"></div>
-            </div>
-          </div>
-        </div>
-
-        <div id="codePanel" class="hidden mt-5 p-4 rounded-xl border bg-slate-50">
-          <div class="text-xs text-slate-500">Your 3‑digit code</div>
-          <div class="flex items-center gap-3 mt-1">
-            <div id="code" class="text-4xl font-mono tracking-widest">—</div>
-            <button id="copyCode" class="px-3 py-1.5 text-sm rounded-lg border bg-white hover:bg-slate-50">Copy</button>
-          </div>
-          <p class="text-xs text-slate-500 mt-2">Share this number with the other device to retrieve the file.</p>
-        </div>
-      </section>
-
-      <!-- Retrieve Card -->
-      <section class="glass rounded-2xl shadow-xl p-5 border border-slate-100">
-        <h2 class="text-xl font-semibold mb-2">Retrieve</h2>
-        <p class="text-sm text-slate-600 mb-4">Enter the 3‑digit code to fetch the file.</p>
-        <div class="flex items-center gap-2">
-          <input id="retrieveInput" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="e.g. 237" class="w-full p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-cyan-600" />
-          <button id="retrieveBtn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold shadow hover:shadow-md">Lookup</button>
-        </div>
-        <div id="lookupStatus" class="mt-3 text-sm text-slate-600"></div>
-        <div id="resultCard" class="hidden mt-4 p-4 rounded-xl border bg-slate-50">
-          <div class="flex items-center justify-between">
-            <div>
-              <div id="resultName" class="font-medium">filename</div>
-              <div id="resultMeta" class="text-xs text-slate-500">meta</div>
-            </div>
-            <a id="downloadLink" href="#" target="_blank" rel="noreferrer noopener" class="px-3 py-2 rounded-lg bg-cyan-600 text-white text-sm font-semibold hover:bg-cyan-700">Open / Download</a>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <section id="how" class="mt-8 glass rounded-2xl shadow-xl p-5 border border-slate-100">
-      <h3 class="text-lg font-semibold">How it works</h3>
-      <ol class="list-decimal ml-5 mt-2 text-sm text-slate-600 space-y-1">
-        <li>Upload your file. The site generates a random <strong>3‑digit</strong> code.</li>
-        <li>We store the file in Firebase Storage and save the code → file mapping in Firestore.</li>
-        <li>On any device, enter the code to fetch the download link.</li>
-      </ol>
-      <p class="text-xs text-slate-500 mt-3">Tip: For production, consider longer codes or sign‑in, and set automatic deletion/expiry.</p>
-    </section>
-
-    <footer class="mt-8 text-xs text-slate-500">
-      <p>© <span id="year"></span> SnapShare. For demo use. Secure your Firebase rules before going live.</p>
-    </footer>
+    <div id="codePanel" class="mt-4 hidden">
+      <p class="text-lg">Your access code is:</p>
+      <p id="code" class="text-3xl font-bold text-green-600"></p>
+    </div>
   </div>
 
-  <!-- Firebase SDKs (modular) -->
+  <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-lg text-center mt-6">
+    <h2 class="text-xl font-bold text-blue-600 mb-4">🔑 Retrieve File</h2>
+    <input id="retrieveInput" type="text" placeholder="Enter 3-digit code"
+      class="border p-2 rounded w-full mb-4 text-center">
+    <button id="retrieveBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+      Get File
+    </button>
+
+    <div id="resultCard" class="hidden mt-4">
+      <p class="font-semibold" id="resultName"></p>
+      <a id="downloadLink" href="#" target="_blank" class="text-blue-600 underline">Download</a>
+    </div>
+  </div>
+
+  <!-- Supabase SDK -->
   <script type="module">
-    // ======= 1) Configure Firebase =======
-    // Create a Firebase project → Build → Authentication (optional), Firestore, Storage → add a Web App → copy config below.
-    const firebaseConfig = {
-      apiKey: "REPLACE_API_KEY",
-      authDomain: "REPLACE_AUTH_DOMAIN",
-      projectId: "REPLACE_PROJECT_ID",
-      storageBucket: "REPLACE_STORAGE_BUCKET",
-      messagingSenderId: "REPLACE_MESSAGING_SENDER_ID",
-      appId: "REPLACE_APP_ID",
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    // 🔹 Replace with your Supabase project values
+    const supabaseUrl = "https://wtpnumytasekbjlaluor.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0cG51bXl0YXNla2JqbGFsdW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNjQyMDEsImV4cCI6MjA3MTk0MDIwMX0.KqqqJMPttqbiSh1s5xnHQDj_h4FmWgfmWbu_pcB7yQ8";
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Upload file
+    async function uploadFile(file) {
+      // Generate unique 3-digit code
+      let code;
+      for (let i = 0; i < 10; i++) {
+        const candidate = (Math.floor(Math.random() * 900) + 100).toString();
+        const { data } = await supabase.from("files").select("code").eq("code", candidate).single();
+        if (!data) { code = candidate; break; }
+      }
+      if (!code) code = ((Date.now() % 900) + 100).toString();
+
+      // Upload to Supabase Storage
+      const path = `${code}/${file.name}`;
+      const { error: uploadErr } = await supabase.storage.from("shared_files").upload(path, file, {
+        cacheControl: "3600",
+        upsert: true
+      });
+      if (uploadErr) throw uploadErr;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage.from("shared_files").getPublicUrl(path);
+
+      // Insert metadata into table
+      const { error: dbErr } = await supabase.from("files").insert({
+        code,
+        filename: file.name,
+        size: file.size,
+        content_type: file.type,
+        url: publicUrl
+      });
+      if (dbErr) throw dbErr;
+
+      return code;
+    }
+
+    // Retrieve file
+    async function getFile(code) {
+      const { data, error } = await supabase.from("files").select("*").eq("code", code).single();
+      if (error) return null;
+      return data;
+    }
+
+    // Button handlers
+    document.getElementById("uploadBtn").onclick = async () => {
+      const file = document.getElementById("fileInput").files[0];
+      if (!file) return alert("Please select a file!");
+      try {
+        const code = await uploadFile(file);
+        document.getElementById("code").textContent = code;
+        document.getElementById("codePanel").classList.remove("hidden");
+      } catch (err) {
+        console.error(err);
+        alert("Upload failed: " + err.message);
+      }
     };
 
-    // ======= 2) Import Firebase SDKs (version-pinned) =======
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-
-    // Init
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
-
-    // UI Elements
-    const fileInput = document.getElementById('fileInput');
-    const fileMeta = document.getElementById('fileMeta');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const codePanel = document.getElementById('codePanel');
-    const codeEl = document.getElementById('code');
-    const copyBtn = document.getElementById('copyCode');
-    const progressWrap = document.getElementById('progressWrap');
-    const progressBar = document.getElementById('progressBar');
-    const progressPct = document.getElementById('progressPct');
-
-    const retrieveInput = document.getElementById('retrieveInput');
-    const retrieveBtn = document.getElementById('retrieveBtn');
-    const lookupStatus = document.getElementById('lookupStatus');
-    const resultCard = document.getElementById('resultCard');
-    const resultName = document.getElementById('resultName');
-    const resultMeta = document.getElementById('resultMeta');
-    const downloadLink = document.getElementById('downloadLink');
-
-    document.getElementById('year').textContent = new Date().getFullYear();
-
-    // Show file meta on select
-    fileInput.addEventListener('change', () => {
-      const f = fileInput.files?.[0];
-      if (!f) { fileMeta.classList.add('hidden'); return; }
-      fileMeta.classList.remove('hidden');
-      fileMeta.textContent = `${f.name} • ${(f.size/1024/1024).toFixed(2)} MB • ${f.type || 'unknown type'}`;
-    });
-
-    // Generate a random 3‑digit code (100..999)
-    const random3 = () => Math.floor(Math.random()*900) + 100;
-
-    // Ensure uniqueness by checking Firestore doc existence; try up to 10 times
-    async function unique3Digit() {
-      for (let i = 0; i < 10; i++) {
-        const candidate = String(random3());
-        const docRef = doc(db, 'files', candidate);
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) return candidate;
-      }
-      // Fallback (still 3 digits): time‑based
-      return String((Date.now() % 900) + 100);
-    }
-
-    // Upload handler
-    uploadBtn.addEventListener('click', async () => {
-      const f = fileInput.files?.[0];
-      if (!f) { alert('Please select a file first.'); return; }
-
-      try {
-        uploadBtn.disabled = true;
-        codePanel.classList.add('hidden');
-        progressWrap.classList.remove('hidden');
-        progressBar.style.width = '0%';
-        progressPct.textContent = '0%';
-
-        const code = await unique3Digit();
-        const storageRef = ref(storage, `shared_files/${code}/${f.name}`);
-        const task = uploadBytesResumable(storageRef, f);
-
-        task.on('state_changed', (snap) => {
-          const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
-          progressBar.style.width = `${pct}%`;
-          progressPct.textContent = pct + '%';
-        });
-
-        await task; // wait for completion
-        const url = await getDownloadURL(storageRef);
-
-        await setDoc(doc(db, 'files', code), {
-          filename: f.name,
-          contentType: f.type,
-          size: f.size,
-          url,
-          uploadedAt: new Date().toISOString(),
-        });
-
-        codeEl.textContent = code;
-        codePanel.classList.remove('hidden');
-      } catch (err) {
-        console.error(err);
-        alert('Upload failed: ' + (err?.message || err));
-      } finally {
-        uploadBtn.disabled = false;
-        progressWrap.classList.add('hidden');
-      }
-    });
-
-    // Copy code
-    copyBtn.addEventListener('click', async () => {
-      const text = codeEl.textContent?.trim();
-      if (!text || text === '—') return;
-      try { await navigator.clipboard.writeText(text); copyBtn.textContent = 'Copied'; setTimeout(()=>copyBtn.textContent='Copy', 1200); } catch {}
-    });
-
-    // Retrieve handler
-    retrieveBtn.addEventListener('click', async () => {
-      const raw = (retrieveInput.value || '').trim();
-      if (!/^[0-9]{3}$/.test(raw)) { lookupStatus.textContent = 'Enter a valid 3‑digit code (100–999).'; resultCard.classList.add('hidden'); return; }
-      lookupStatus.textContent = 'Looking up…';
-      resultCard.classList.add('hidden');
-      try {
-        const docRef = doc(db, 'files', raw);
-        const snap = await getDoc(docRef);
-        if (!snap.exists()) { lookupStatus.textContent = 'No file found for that code.'; return; }
-        const data = snap.data();
-        resultName.textContent = data.filename || 'file';
-        const dt = data.uploadedAt ? new Date(data.uploadedAt) : null;
-        const when = dt ? dt.toLocaleString() : 'unknown time';
-        const sizeMB = data.size ? (data.size/1024/1024).toFixed(2) + ' MB' : '';
-        resultMeta.textContent = `${sizeMB}${sizeMB?' • ':''}${data.contentType || ''} • Uploaded ${when}`;
-        downloadLink.href = data.url;
-        resultCard.classList.remove('hidden');
-        lookupStatus.textContent = 'File found.';
-      } catch (err) {
-        console.error(err);
-        lookupStatus.textContent = 'Lookup failed: ' + (err?.message || err);
-      }
-    });
+    document.getElementById("retrieveBtn").onclick = async () => {
+      const code = document.getElementById("retrieveInput").value.trim();
+      if (!code) return alert("Enter a code!");
+      const file = await getFile(code);
+      if (!file) return alert("File not found!");
+      document.getElementById("resultName").textContent = file.filename;
+      document.getElementById("downloadLink").href = file.url;
+      document.getElementById("resultCard").classList.remove("hidden");
+    };
   </script>
-
-  <!-- Optional: Example Firestore/Storage rules (harden before production)
-  Firestore:
-  service cloud.firestore {
-    match /databases/{database}/documents {
-      match /files/{code} {
-        allow read, write: if true; // DEMO ONLY. Replace with proper auth/rules.
-      }
-    }
-  }
-  Storage:
-  service firebase.storage {
-    match /b/{bucket}/o {
-      match /shared_files/{allPaths=**} {
-        allow read, write: if true; // DEMO ONLY. Replace with proper auth/rules.
-      }
-    }
-  }
-  -->
 </body>
 </html>

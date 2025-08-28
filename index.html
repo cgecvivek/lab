@@ -11,67 +11,26 @@
     .glass { background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); }
   </style>
 </head>
-<div class="max-w-lg w-full glass rounded-2xl shadow-xl p-6">
-  <h1 class="text-2xl font-extrabold text-slate-800 mb-4 text-center">SnapShare</h1>
-  <p class="text-sm text-slate-600 mb-6 text-center">
-    Upload a PDF, Word document, or image. Get a <strong>3-digit code</strong> to access it on any device.
-  </p>
+<body class="min-h-screen flex items-center justify-center p-4">
 
-  <!-- File Input -->
-  <input type="file" id="fileInput" class="block w-full mb-3 text-sm file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:font-semibold hover:file:bg-indigo-700" />
-  <div id="fileMeta" class="text-xs text-slate-500 mb-3 hidden"></div>
+  <div class="max-w-2xl w-full glass rounded-2xl shadow-xl p-8">
+    <h1 class="text-3xl md:text-4xl font-extrabold text-slate-800 mb-6 text-center">SnapShare</h1>
+    <p class="text-sm md:text-base text-slate-600 mb-6 text-center">Upload a PDF, Word document, or image. Get a <strong>3-digit code</strong> to access it on any device.</p>
 
-  <!-- Upload Button -->
-  <button id="uploadBtn" class="w-full py-2 rounded-xl bg-cyan-600 text-white font-semibold hover:bg-cyan-700 shadow mb-4">Upload & Generate Code</button>
+    <!-- File Input -->
+    <input type="file" id="fileInput" class="block w-full mb-3 text-sm file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-indigo-600 file:text-white file:font-semibold hover:file:bg-indigo-700" />
 
-  <!-- Upload Status -->
-  <div id="status" class="mt-2 text-sm text-center text-slate-700"></div>
+    <div id="fileMeta" class="text-xs text-slate-500 mb-3 hidden"></div>
 
-  <hr class="my-4 border-slate-200">
+    <!-- Upload Button -->
+    <button id="uploadBtn" class="w-full py-2 rounded-xl bg-cyan-600 text-white font-semibold hover:bg-cyan-700 shadow mb-3">Upload & Generate Code</button>
 
-  <!-- Access File Section -->
-  <p class="text-sm text-slate-600 mb-2 text-center">Enter a 3-digit code to access a file:</p>
-  <input type="text" id="accessCode" maxlength="3" placeholder="Enter code" class="p-2 rounded-xl border focus:outline-none focus:ring-2 focus:ring-indigo-600 mb-2 w-full"/>
-  <button id="accessBtn" class="w-full py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow mb-2">Access File</button>
-  <div id="accessStatus" class="mt-2 text-sm text-center text-slate-700"></div>
-</div>
-  
+    <!-- Access File Button -->
+    <button id="accessBtn" class="w-full py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 shadow">Access File</button>
 
-<script>
-  const accessBtn = document.getElementById("accessBtn");
-  const accessCode = document.getElementById("accessCode");
-  const accessStatus = document.getElementById("accessStatus");
-
-  accessBtn.addEventListener("click", async () => {
-    const code = accessCode.value.trim();
-    if(!/^\d{3}$/.test(code)){
-      accessStatus.textContent = "⚠️ Enter a valid 3-digit code.";
-      return;
-    }
-
-    accessStatus.textContent = "Fetching file...";
-
-    try {
-      const { data, error } = await supabaseClient
-        .from("file_codes")
-        .select("*")
-        .eq("code", code)
-        .single();
-
-      if(error || !data){
-        accessStatus.textContent = "❌ No file found for this code.";
-        return;
-      }
-
-      const { data: urlData } = supabaseClient.storage.from(BUCKET).getPublicUrl(data.path);
-      accessStatus.innerHTML = `✅ File found: <a href="${urlData.publicUrl}" target="_blank" class="text-indigo-600 hover:underline">Open / Download</a>`;
-    } catch(err){
-      console.error(err);
-      accessStatus.textContent = "❌ Error fetching file.";
-    }
-  });
-</script>
-  
+    <!-- Status / Code Display -->
+    <div id="status" class="mt-4 text-sm text-center text-slate-700"></div>
+  </div>
 
   <script src="https://unpkg.com/@supabase/supabase-js"></script>
   <script>
@@ -82,8 +41,11 @@
 
     const fileInput = document.getElementById("fileInput");
     const uploadBtn = document.getElementById("uploadBtn");
+    const accessBtn = document.getElementById("accessBtn");
     const fileMeta = document.getElementById("fileMeta");
     const status = document.getElementById("status");
+
+    let generatedCode = "";
 
     // Show file info
     fileInput.addEventListener("change", () => {
@@ -93,6 +55,7 @@
       fileMeta.textContent = `${f.name} • ${(f.size/1024/1024).toFixed(2)} MB • ${f.type || 'unknown type'}`;
     });
 
+    // Upload & Generate Code
     uploadBtn.addEventListener("click", async () => {
       const file = fileInput.files[0];
       if(!file){ status.textContent = "⚠️ Please choose a file first!"; return; }
@@ -111,8 +74,28 @@
       const { error: insertError } = await supabaseClient.from("file_codes").insert([{ code, path }]);
       if(insertError){ status.textContent = "⚠️ DB insert failed: " + insertError.message; uploadBtn.disabled=false; return; }
 
+      generatedCode = code;
       status.textContent = `✅ Uploaded! Your code is: ${code}`;
+
       uploadBtn.disabled = false;
+    });
+
+    // Access File by Code
+    accessBtn.addEventListener("click", async () => {
+      const code = generatedCode || prompt("Enter your 3-digit code:");
+      if(!code || !/^\d{3}$/.test(code)){ alert("Please enter a valid 3-digit code."); return; }
+
+      status.textContent = "Fetching file...";
+      try {
+        const { data, error } = await supabaseClient.from("file_codes").select("*").eq("code", code).single();
+        if(error || !data){ status.textContent = "❌ No file found for that code."; return; }
+
+        const { data: publicUrl } = supabaseClient.storage.from(BUCKET).getPublicUrl(data.path);
+        window.open(publicUrl.publicUrl, "_blank");
+        status.textContent = `✅ File opened: ${data.path.split("/")[1]}`;
+      } catch(err) {
+        status.textContent = "❌ Lookup failed: " + (err.message || err);
+      }
     });
   </script>
 
